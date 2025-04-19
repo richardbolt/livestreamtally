@@ -1,0 +1,10 @@
+prefix=/Library/NDI SDK for Apple
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib/macOS
+includedir=${prefix}/include
+
+Name: libndi
+Description: NDI SDK
+Version: 5.5.0
+Libs: -L${libdir} -lndi
+Cflags: -I${includedir} 
