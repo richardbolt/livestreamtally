@@ -14,7 +14,9 @@ class MainViewModel: ObservableObject {
     private var timer: Timer?
     
     init(apiKey: String? = nil, channelId: String? = nil) {
-        initialize(apiKey: apiKey, channelId: channelId)
+        // Try to use cached channel ID first, fall back to provided one
+        let cachedId = UserDefaults.standard.string(forKey: "youtube_channel_id_cached")
+        initialize(apiKey: apiKey, channelId: cachedId ?? channelId)
     }
     
     func initialize(apiKey: String?, channelId: String?) {

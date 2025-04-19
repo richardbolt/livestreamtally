@@ -1,10 +1,34 @@
 import SwiftUI
 
+@MainActor
+class SettingsViewModel: ObservableObject {
+    private var youtubeService: YouTubeService?
+    
+    init() {
+        if let apiKey = UserDefaults.standard.string(forKey: "youtube_api_key") {
+            youtubeService = try? YouTubeService(apiKey: apiKey)
+        }
+    }
+    
+    func resolveAndCacheChannelId(_ channelId: String) async {
+        guard let service = youtubeService else { return }
+        
+        do {
+            let resolvedId = try await service.resolveChannelIdentifier(channelId)
+            UserDefaults.standard.set(resolvedId, forKey: "youtube_channel_id_cached")
+        } catch {
+            Logger.error("Failed to resolve channel ID: \(error.localizedDescription)", category: .main)
+        }
+    }
+}
+
 struct SettingsView: View {
     @AppStorage("youtube_api_key") private var apiKey = ""
     @AppStorage("youtube_channel_id") private var channelId = ""
+    @AppStorage("youtube_channel_id_cached") private var cachedChannelId = ""
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
+    @StateObject private var viewModel = SettingsViewModel()
     
     var body: some View {
         VStack(spacing: 0) {
@@ -49,7 +73,10 @@ struct SettingsView: View {
             HStack {
                 Spacer()
                 Button("Done") {
-                    dismiss()
+                    Task {
+                        await viewModel.resolveAndCacheChannelId(channelId)
+                        dismiss()
+                    }
                 }
                 .keyboardShortcut(.defaultAction)
                 .controlSize(.large)

@@ -37,13 +37,14 @@ class YouTubeService {
             return identifier
         }
         
-        // Otherwise treat it as a handle and look it up
-        Logger.debug("Resolving handle: \(identifier)", category: .youtube)
+        // Handle @ handles by removing the @ and using forHandle
+        let handle = identifier.hasPrefix("@") ? String(identifier.dropFirst()) : identifier
+        Logger.debug("Resolving handle: \(handle)", category: .youtube)
         
         return try await withCheckedThrowingContinuation { continuation in
             // Create a channels list query
             let query = GTLRYouTubeQuery_ChannelsList.query(withPart: ["id"])
-            query.forUsername = identifier
+            query.forHandle = handle  // Use forHandle instead of forUsername
             
             // Execute the query
             service.executeQuery(query) { (ticket, result, error) in
