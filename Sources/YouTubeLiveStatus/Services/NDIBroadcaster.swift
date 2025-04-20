@@ -83,33 +83,56 @@ class NDIBroadcaster {
             return
         }
         
-        guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else {
+        // Calculate the actual content rect (excluding letterboxing)
+        let viewBounds = view.bounds
+        let targetAspect = 16.0/9.0
+        let currentAspect = viewBounds.width / viewBounds.height
+        
+        let contentRect: CGRect
+        if currentAspect > targetAspect {
+            // Letterboxing on top/bottom
+            let contentHeight = viewBounds.width / targetAspect
+            let y = (viewBounds.height - contentHeight) / 2
+            contentRect = CGRect(x: 0, y: y, width: viewBounds.width, height: contentHeight)
+        } else {
+            // Letterboxing on sides
+            let contentWidth = viewBounds.height * targetAspect
+            let x = (viewBounds.width - contentWidth) / 2
+            contentRect = CGRect(x: x, y: 0, width: contentWidth, height: viewBounds.height)
+        }
+        
+        // Capture only the content area
+        guard let bitmap = view.bitmapImageRepForCachingDisplay(in: contentRect) else {
             Logger.error("Failed to create bitmap representation", category: .app)
             return
         }
         
-        view.cacheDisplay(in: view.bounds, to: bitmap)
+        view.cacheDisplay(in: contentRect, to: bitmap)
         
         guard let cgImage = bitmap.cgImage else {
             Logger.error("Failed to get CGImage from bitmap", category: .app)
             return
         }
         
-        let width = cgImage.width
-        let height = cgImage.height
-        let bitsPerComponent = cgImage.bitsPerComponent
-        let bytesPerRow = cgImage.bytesPerRow
+        // Target dimensions for NDI output
+        let targetWidth = 1280
+        let targetHeight = 720
+        let targetBytesPerRow = targetWidth * 4
+        
+        // Source dimensions from the content area
+        let sourceWidth = Int(contentRect.width)
+        let sourceHeight = Int(contentRect.height)
         
         let colorSpace = CGColorSpaceCreateDeviceRGB()
         let bitmapInfo = CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
         
-        let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: height * bytesPerRow)
+        let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: targetHeight * targetBytesPerRow)
         
         guard let context = CGContext(data: buffer,
-                                    width: width,
-                                    height: height,
-                                    bitsPerComponent: bitsPerComponent,
-                                    bytesPerRow: bytesPerRow,
+                                    width: targetWidth,
+                                    height: targetHeight,
+                                    bitsPerComponent: 8,
+                                    bytesPerRow: targetBytesPerRow,
                                     space: colorSpace,
                                     bitmapInfo: bitmapInfo) else {
             buffer.deallocate()
@@ -117,19 +140,35 @@ class NDIBroadcaster {
             return
         }
         
-        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+        // Clear the context first
+        context.setFillColor(CGColor.black)
+        context.fill(CGRect(x: 0, y: 0, width: targetWidth, height: targetHeight))
+        
+        // Calculate scaling to maintain aspect ratio
+        let scaleX = CGFloat(targetWidth) / CGFloat(sourceWidth)
+        let scaleY = CGFloat(targetHeight) / CGFloat(sourceHeight)
+        let scale = min(scaleX, scaleY)
+        
+        // Calculate centered drawing rect
+        let scaledWidth = CGFloat(sourceWidth) * scale
+        let scaledHeight = CGFloat(sourceHeight) * scale
+        let x = (CGFloat(targetWidth) - scaledWidth) / 2
+        let y = (CGFloat(targetHeight) - scaledHeight) / 2
+        
+        let drawRect = CGRect(x: x, y: y, width: scaledWidth, height: scaledHeight)
+        context.draw(cgImage, in: drawRect)
         
         var videoFrame = NDIlib_video_frame_v2_t()
-        videoFrame.xres = Int32(width)
-        videoFrame.yres = Int32(height)
+        videoFrame.xres = Int32(targetWidth)
+        videoFrame.yres = Int32(targetHeight)
         videoFrame.FourCC = NDIlib_FourCC_type_BGRA
         videoFrame.frame_rate_N = 30000
         videoFrame.frame_rate_D = 1000
-        videoFrame.picture_aspect_ratio = Float(width) / Float(height)
+        videoFrame.picture_aspect_ratio = 16.0/9.0
         videoFrame.frame_format_type = NDIlib_frame_format_type_progressive
         videoFrame.timecode = Int64(Date().timeIntervalSince1970 * 1000)
         videoFrame.p_data = buffer
-        videoFrame.line_stride_in_bytes = Int32(bytesPerRow)
+        videoFrame.line_stride_in_bytes = Int32(targetBytesPerRow)
         
         NDIlib_send_send_video_v2(sender, &videoFrame)
         

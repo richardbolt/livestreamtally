@@ -46,6 +46,7 @@ struct ContentView: View {
                 .padding(40)
             }
         }
+        .aspectRatio(16.0/9.0, contentMode: .fit)
         .onAppear {
             viewModel.startMonitoring()
             ndiViewModel.startStreaming()
