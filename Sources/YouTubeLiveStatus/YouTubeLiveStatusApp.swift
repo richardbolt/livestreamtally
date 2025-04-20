@@ -59,12 +59,7 @@ struct YouTubeLiveStatusApp: App {
                 }
             }
             
-            CommandGroup(after: .appInfo) {
-                Button("Preferences...") {
-                    NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
-                }
-                .keyboardShortcut(",", modifiers: .command)
-            }
+            CommandGroup(replacing: .systemServices) {}  // Remove Services menu
         }
         
         Settings {
