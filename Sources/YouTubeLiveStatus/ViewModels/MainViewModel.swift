@@ -81,7 +81,7 @@ final class MainViewModel: ObservableObject {
             isLive = status.isLive
             viewerCount = status.viewerCount
             title = status.title
-            Logger.debug("Status updated - isLive: \(isLive), viewers: \(viewerCount), title: \(title)", category: .main)
+            Logger.debug("Status updated - isLive: \(isLive), viewers: \(viewerCount), title: \(title), videoId: \(status.videoId)", category: .main)
             error = nil
             
         } catch let serviceError {

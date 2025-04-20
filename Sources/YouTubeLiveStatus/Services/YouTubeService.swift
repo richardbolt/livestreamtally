@@ -7,6 +7,7 @@ struct LiveStatus {
     let isLive: Bool
     let viewerCount: Int
     let title: String
+    let videoId: String
 }
 
 enum YouTubeError: Error {
@@ -114,7 +115,7 @@ class YouTubeService {
                 currentLiveVideoId = nil
             }
             
-            return LiveStatus(isLive: isLive, viewerCount: viewerCount, title: title)
+            return LiveStatus(isLive: isLive, viewerCount: viewerCount, title: title, videoId: videoId)
         }
         
         // If no current live video or it's no longer live, check the most recent video
@@ -147,7 +148,7 @@ class YouTubeService {
             currentLiveVideoId = videoId
         }
         
-        return LiveStatus(isLive: isLive, viewerCount: viewerCount, title: title)
+        return LiveStatus(isLive: isLive, viewerCount: viewerCount, title: title, videoId: videoId)
     }
     
     private func mapError(_ error: Error) -> YouTubeError {
