@@ -57,7 +57,6 @@ final class MainViewModel: ObservableObject {
                 await self?.checkLiveStatus()
             }
         }
-        timer?.fire()
     }
     
     func stopMonitoring() {
