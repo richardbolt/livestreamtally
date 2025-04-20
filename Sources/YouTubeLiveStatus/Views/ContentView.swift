@@ -74,7 +74,7 @@ struct ContentView: View {
                         .frame(width: geometry.size.width * 0.05, height: geometry.size.width * 0.05)
                     Text(viewModel.isLive ? "ON AIR" : "OFF AIR")
                         .font(.system(size: geometry.size.width * 0.15, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundColor(viewModel.isLive ? .red : .white)
                 }
                 .padding(.vertical, geometry.size.height * 0.05)
                 
@@ -132,7 +132,7 @@ struct NDIBroadcastView: View {
                     .frame(width: 36, height: 36)
                 Text(viewModel.isLive ? "ON AIR" : "OFF AIR")
                     .font(.system(size: 200, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundColor(viewModel.isLive ? .red : .white)
             }
             .padding(.vertical, 16)
             
