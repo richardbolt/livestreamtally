@@ -32,8 +32,21 @@ This project uses Swift Package Manager for dependency management. To work on th
 
 1. Clone the repository
 2. Open the project in Xcode or your preferred editor
-3. Run `swift build` to build the project
+3. Run `./build_app.sh` to build the project
 4. Run `swift run` to run the app in development mode
+
+To view application logs:
+
+```bash
+log stream --predicate 'subsystem == "com.youtubelivestatus.app"' --level debug
+```
+
+To run in debug mode:
+
+```bash
+OS_ACTIVITY_MODE=debug open YouTubeLiveStatus.app
+```
+
 
 ## License
 
