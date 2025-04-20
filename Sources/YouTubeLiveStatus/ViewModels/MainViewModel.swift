@@ -8,6 +8,7 @@ final class MainViewModel: ObservableObject {
     @Published var viewerCount = 0
     @Published var title = ""
     @Published var error: String?
+    @Published var isLoading = false
     
     @AppStorage("youtube_channel_id") private var channelId = ""
     @AppStorage("youtube_upload_playlist_id") private var uploadPlaylistId = ""
@@ -41,9 +42,12 @@ final class MainViewModel: ObservableObject {
         // Stop any existing timer
         stopMonitoring()
         
+        isLoading = true
+        
         // Check immediately
         Task {
             await checkLiveStatus()
+            isLoading = false
         }
         
         // Then start periodic checks

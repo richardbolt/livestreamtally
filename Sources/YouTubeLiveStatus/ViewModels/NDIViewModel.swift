@@ -5,68 +5,61 @@ import os
 
 @MainActor
 class NDIViewModel: ObservableObject {
-    @Published var isEnabled = false
-    @Published var error: Error?
-    @Published var sourceName: String = "YouTube Live Status"
+    @Published var isStreaming = false
+    @Published var error: String?
     
     private let broadcaster = NDIBroadcaster()
-    private var frameTimer: Timer?
-    private var view: NSView?
+    private var timer: Timer?
+    private let mainViewModel: MainViewModel
     
-    init(name: String = "YouTube Live Status") {
-        self.sourceName = name
-        Logger.info("NDIViewModel initialized", category: .app)
+    init(mainViewModel: MainViewModel) {
+        self.mainViewModel = mainViewModel
     }
     
     func startStreaming() {
-        Logger.info("Starting NDI broadcast", category: .app)
-        broadcaster.start(name: sourceName)
-        isEnabled = true
-    }
-    
-    func stopStreaming() {
-        Logger.info("Stopping NDI broadcast", category: .app)
-        broadcaster.stop()
-        isEnabled = false
-        stopFrameTimer()
-    }
-    
-    func updateTally(isLive: Bool, viewerCount: Int, title: String) {
-        Logger.debug("Updating NDI tally", category: .app)
-        broadcaster.sendTally(isLive: isLive, viewerCount: viewerCount, title: title)
-    }
-    
-    func startFrameTimer(for view: NSView) {
-        Logger.debug("Starting frame timer", category: .app)
-        self.view = view
+        guard !isStreaming else { return }
         
-        // Create a weak reference to self to avoid retain cycles
-        weak var weakSelf = self
+        Logger.info("Starting NDI streaming", category: .app)
         
-        // Run the timer on the main thread since we're updating UI
-        frameTimer = Timer.scheduledTimer(withTimeInterval: 1.0/30.0, repeats: true) { _ in
-            Task { @MainActor in
-                guard let self = weakSelf else { return }
-                if let view = self.view {
-                    self.broadcaster.sendFrame(view)
-                }
+        broadcaster.start(name: "YouTube Live Status")
+        isStreaming = true
+        
+        // Start a timer to send frames
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0/30.0, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self = self else { return }
+                self.broadcaster.sendFrame(self.mainViewModel)
             }
         }
     }
     
-    nonisolated func stopFrameTimer() {
-        DispatchQueue.main.async {
-            Logger.debug("Stopping frame timer", category: .app)
-            self.frameTimer?.invalidate()
-            self.frameTimer = nil
-            self.view = nil
-        }
+    func stopStreaming() {
+        guard isStreaming else { return }
+        
+        Logger.info("Stopping NDI streaming", category: .app)
+        
+        timer?.invalidate()
+        timer = nil
+        broadcaster.stop()
+        isStreaming = false
+    }
+    
+    func updateTally() {
+        guard isStreaming else { return }
+        
+        broadcaster.sendTally(
+            isLive: mainViewModel.isLive,
+            viewerCount: mainViewModel.viewerCount,
+            title: mainViewModel.title
+        )
     }
     
     deinit {
-        // Stop streaming synchronously since we're already on the main thread
-        stopFrameTimer()
-        broadcaster.stop()
-        Logger.info("NDIViewModel deinitialized", category: .app)
+        let broadcaster = self.broadcaster
+        Task { @MainActor [weak self] in
+            self?.stopStreaming()
+            broadcaster.stop()
+            Logger.info("NDIViewModel deinitialized", category: .app)
+        }
     }
 } 
