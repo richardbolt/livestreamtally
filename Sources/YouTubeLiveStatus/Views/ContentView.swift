@@ -11,6 +11,14 @@ struct ContentView: View {
         _viewModel = StateObject(wrappedValue: MainViewModel(apiKey: apiKey))
     }
     
+    private func startMonitoring() {
+        viewModel.startMonitoring()
+    }
+    
+    private func stopMonitoring() {
+        viewModel.stopMonitoring()
+    }
+    
     var body: some View {
         GeometryReader { geometry in
             ZStack {
@@ -41,17 +49,13 @@ struct ContentView: View {
         }
         .aspectRatio(16/9, contentMode: .fit)
         .onAppear {
-            viewModel.startMonitoring()
-            ndiViewModel.startStreaming()
-            
+            startMonitoring()
             DispatchQueue.main.async {
-                if let nsView = NSApp.keyWindow?.contentView {
-                    ndiViewModel.startFrameTimer(for: nsView)
-                }
+                ndiViewModel.startStreaming()
             }
         }
         .onDisappear {
-            viewModel.stopMonitoring()
+            stopMonitoring()
             ndiViewModel.stopStreaming()
         }
         .background(
@@ -127,7 +131,7 @@ struct NDIBroadcastView: View {
                     .fill(viewModel.isLive ? Color.red : Color.gray)
                     .frame(width: 36, height: 36)
                 Text(viewModel.isLive ? "ON AIR" : "OFF AIR")
-                    .font(.system(size: 72, weight: .bold))
+                    .font(.system(size: 200, weight: .bold))
                     .foregroundColor(.white)
             }
             .padding(.vertical, 16)
