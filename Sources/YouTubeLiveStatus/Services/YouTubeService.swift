@@ -34,7 +34,8 @@ class YouTubeService {
     }
     
     private func executeQuery<T: GTLRObject>(_ query: GTLRQuery) async throws -> T {
-        try await withCheckedThrowingContinuation { continuation in
+        Logger.debug("Calling YouTube API: \(String(describing: type(of: query)))", category: .youtube)
+        return try await withCheckedThrowingContinuation { continuation in
             service.executeQuery(query) { (ticket: GTLRServiceTicket, response: Any?, error: Error?) in
                 if let error = error {
                     continuation.resume(throwing: error)
