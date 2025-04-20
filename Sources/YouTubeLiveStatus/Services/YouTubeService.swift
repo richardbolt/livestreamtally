@@ -106,7 +106,7 @@ class YouTubeService {
                 throw YouTubeError.unknownError
             }
             
-            let isLive = video.snippet?.liveBroadcastContent == "live"
+            let isLive = video.liveStreamingDetails?.actualStartTime != nil && video.liveStreamingDetails?.actualEndTime == nil
             let viewerCount = video.liveStreamingDetails?.concurrentViewers?.intValue ?? 0
             let title = video.snippet?.title ?? ""
             
@@ -139,7 +139,7 @@ class YouTubeService {
             throw YouTubeError.unknownError
         }
         
-        let isLive = video.snippet?.liveBroadcastContent == "live"
+        let isLive = video.liveStreamingDetails?.actualStartTime != nil && video.liveStreamingDetails?.actualEndTime == nil
         let viewerCount = video.liveStreamingDetails?.concurrentViewers?.intValue ?? 0
         let title = video.snippet?.title ?? ""
         
