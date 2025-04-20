@@ -24,8 +24,8 @@ struct ContentView: View {
                     }
                     
                     if viewModel.isLive {
-                        Text("🔴 LIVE")
-                            .font(.system(size: 72, weight: .bold))
+                        Text("🔴 ON AIR")
+                            .font(.system(size: 100, weight: .bold))
                             .foregroundColor(.red)
                         
                         Text("Viewers: \(viewModel.viewerCount)")
@@ -38,8 +38,8 @@ struct ContentView: View {
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
                     } else {
-                        Text("Channel is offline")
-                            .font(.system(size: 72, weight: .medium))
+                        Text("⚪ OFF AIR")
+                            .font(.system(size: 100, weight: .medium))
                             .foregroundColor(.gray)
                     }
                 }
