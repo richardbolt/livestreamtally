@@ -35,6 +35,10 @@ struct SettingsView: View {
     @StateObject private var viewModel = SettingsViewModel()
     @EnvironmentObject private var mainViewModel: MainViewModel
     
+    // Store initial values to detect changes
+    private let initialApiKey = UserDefaults.standard.string(forKey: "youtube_api_key") ?? ""
+    private let initialChannelId = UserDefaults.standard.string(forKey: "youtube_channel_id") ?? ""
+    
     var body: some View {
         VStack(spacing: 0) {
             Form {
@@ -79,20 +83,23 @@ struct SettingsView: View {
                 Spacer()
                 Button("Done") {
                     Task {
-                        // Update the main view model with new settings
-                        mainViewModel.updateApiKey(apiKey)
-                        mainViewModel.updateChannelId(channelId)
+                        let apiKeyChanged = apiKey != initialApiKey
+                        let channelIdChanged = channelId != initialChannelId
                         
-                        // Clear cached playlist ID when channel changes
-                        if channelId != cachedChannelId {
-                            UserDefaults.standard.removeObject(forKey: "youtube_upload_playlist_id")
+                        if apiKeyChanged {
+                            mainViewModel.updateApiKey(apiKey)
                         }
                         
-                        // Resolve and cache the channel ID
-                        await viewModel.resolveAndCacheChannelId(channelId)
+                        if channelIdChanged {
+                            // Only resolve and cache if the channel ID changed
+                            await viewModel.resolveAndCacheChannelId(channelId)
+                            mainViewModel.updateChannelId(channelId)
+                        }
                         
-                        // Start monitoring with new settings
-                        mainViewModel.startMonitoring()
+                        // Only restart monitoring if something changed
+                        if apiKeyChanged || channelIdChanged {
+                            mainViewModel.startMonitoring()
+                        }
                         
                         dismiss()
                     }
