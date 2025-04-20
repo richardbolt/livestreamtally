@@ -3,90 +3,102 @@ import SwiftUI
 import os
 
 @MainActor
-class MainViewModel: ObservableObject {
+final class MainViewModel: ObservableObject {
     @Published var isLive = false
     @Published var viewerCount = 0
-    @Published var streamTitle = ""
+    @Published var title = ""
     @Published var error: String?
     
+    @AppStorage("youtube_channel_id") private var channelId = ""
+    @AppStorage("youtube_upload_playlist_id") private var uploadPlaylistId = ""
+    
     private var youtubeService: YouTubeService?
-    private var channelId: String?
     private var timer: Timer?
     
-    init(apiKey: String? = nil, channelId: String? = nil) {
-        // Try to use cached channel ID first, fall back to provided one
-        let cachedId = UserDefaults.standard.string(forKey: "youtube_channel_id_cached")
-        initialize(apiKey: apiKey, channelId: cachedId ?? channelId)
-    }
-    
-    func initialize(apiKey: String?, channelId: String?) {
-        self.channelId = channelId
-        
-        do {
-            youtubeService = try YouTubeService(apiKey: apiKey)
-            Logger.info("MainViewModel initialized", category: .main)
-            error = nil
-        } catch {
-            Logger.error("Failed to initialize YouTubeService: \(error.localizedDescription)", category: .main)
-            self.error = "Failed to initialize: \(error.localizedDescription)"
+    init(apiKey: String? = nil) {
+        if let apiKey = apiKey, !apiKey.isEmpty {
+            do {
+                youtubeService = try YouTubeService(apiKey: apiKey)
+                self.error = nil
+            } catch let serviceError {
+                self.error = "Failed to initialize YouTube service: \(serviceError.localizedDescription)"
+            }
         }
     }
     
     func startMonitoring() {
-        guard let channelId = channelId else {
-            Logger.error("Channel ID not configured", category: .main)
+        guard youtubeService != nil else {
+            error = "YouTube service not initialized. Please check your API key."
+            return
+        }
+        
+        guard !channelId.isEmpty else {
             error = "Channel ID not configured"
             return
         }
         
-        Logger.info("Starting monitoring for channel: \(channelId)", category: .main)
+        // Stop any existing timer
+        stopMonitoring()
         
-        // Cancel any existing timer
-        timer?.invalidate()
-        
-        // Create a new timer that fires every 30 seconds
-        timer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
-            Task {
-                await self?.checkLiveStatus()
-            }
-        }
-        
-        // Fire immediately
+        // Check immediately
         Task {
             await checkLiveStatus()
         }
         
-        Logger.debug("Monitoring timer started", category: .main)
+        // Then start periodic checks
+        timer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
+            Task { [weak self] in
+                await self?.checkLiveStatus()
+            }
+        }
     }
     
     func stopMonitoring() {
         timer?.invalidate()
         timer = nil
-        Logger.info("Monitoring stopped", category: .main)
     }
     
     private func checkLiveStatus() async {
-        guard let service = youtubeService, let channelId = channelId else {
-            return
-        }
+        guard let youtubeService = youtubeService else { return }
         
         do {
-            let (live, count, title) = try await service.checkLiveStatus(channelIdentifier: channelId)
-            
-            // Update UI on main thread
-            await MainActor.run {
-                self.isLive = live
-                self.viewerCount = count
-                self.streamTitle = title
-                self.error = nil
+            // If we don't have a playlist ID or it's for a different channel, resolve it
+            if uploadPlaylistId.isEmpty {
+                let (resolvedChannelId, resolvedPlaylistId) = try await youtubeService.resolveChannelIdentifier(channelId)
+                channelId = resolvedChannelId // Update to canonical form if needed
+                uploadPlaylistId = resolvedPlaylistId
             }
             
-            Logger.debug("Status updated - isLive: \(live), viewers: \(count), title: \(title)", category: .main)
-        } catch {
-            await MainActor.run {
-                self.error = error.localizedDescription
+            let status = try await youtubeService.checkLiveStatus(channelId: channelId, uploadPlaylistId: uploadPlaylistId)
+            
+            isLive = status.isLive
+            viewerCount = status.viewerCount
+            title = status.title
+            error = nil
+            
+        } catch let serviceError {
+            if case YouTubeError.quotaExceeded = serviceError {
+                self.error = "YouTube API quota exceeded. Please try again later."
+            } else {
+                self.error = "Failed to check live status: \(serviceError.localizedDescription)"
             }
-            Logger.error("Failed to check live status: \(error.localizedDescription)", category: .main)
         }
+    }
+    
+    func updateApiKey(_ newApiKey: String) {
+        do {
+            youtubeService = try YouTubeService(apiKey: newApiKey)
+            error = nil
+        } catch let serviceError {
+            error = "Failed to initialize YouTube service: \(serviceError.localizedDescription)"
+        }
+    }
+    
+    func updateChannelId(_ newChannelId: String) {
+        // Clear the cached playlist ID when channel ID changes
+        if newChannelId != channelId {
+            uploadPlaylistId = ""
+        }
+        channelId = newChannelId
     }
 } 

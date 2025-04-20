@@ -6,8 +6,7 @@ struct ContentView: View {
     
     init() {
         let apiKey = UserDefaults.standard.string(forKey: "youtube_api_key") ?? ""
-        let channelId = UserDefaults.standard.string(forKey: "youtube_channel_id") ?? ""
-        _viewModel = StateObject(wrappedValue: MainViewModel(apiKey: apiKey, channelId: channelId))
+        _viewModel = StateObject(wrappedValue: MainViewModel(apiKey: apiKey))
     }
     
     var body: some View {
@@ -33,7 +32,7 @@ struct ContentView: View {
                             .font(.system(size: 48))
                             .foregroundColor(.white)
                         
-                        Text(viewModel.streamTitle)
+                        Text(viewModel.title)
                             .font(.system(size: 36))
                             .foregroundColor(.white)
                             .multilineTextAlignment(.center)

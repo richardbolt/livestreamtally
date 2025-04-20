@@ -1,4 +1,5 @@
 import SwiftUI
+import os
 
 @MainActor
 class SettingsViewModel: ObservableObject {
@@ -14,10 +15,12 @@ class SettingsViewModel: ObservableObject {
         guard let service = youtubeService else { return }
         
         do {
-            let resolvedId = try await service.resolveChannelIdentifier(channelId)
+            let (resolvedId, uploadPlaylistId) = try await service.resolveChannelIdentifier(channelId)
             UserDefaults.standard.set(resolvedId, forKey: "youtube_channel_id_cached")
+            UserDefaults.standard.set(uploadPlaylistId, forKey: "youtube_upload_playlist_id")
+            os_log("Cached channel ID and playlist ID", log: .default, type: .info)
         } catch {
-            Logger.error("Failed to resolve channel ID: \(error.localizedDescription)", category: .main)
+            os_log("Failed to resolve channel ID: %{public}@", log: .default, type: .error, error.localizedDescription)
         }
     }
 }
@@ -26,9 +29,11 @@ struct SettingsView: View {
     @AppStorage("youtube_api_key") private var apiKey = ""
     @AppStorage("youtube_channel_id") private var channelId = ""
     @AppStorage("youtube_channel_id_cached") private var cachedChannelId = ""
+    @AppStorage("youtube_upload_playlist_id") private var uploadPlaylistId = ""
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @StateObject private var viewModel = SettingsViewModel()
+    @EnvironmentObject private var mainViewModel: MainViewModel
     
     var body: some View {
         VStack(spacing: 0) {
@@ -74,7 +79,21 @@ struct SettingsView: View {
                 Spacer()
                 Button("Done") {
                     Task {
+                        // Update the main view model with new settings
+                        mainViewModel.updateApiKey(apiKey)
+                        mainViewModel.updateChannelId(channelId)
+                        
+                        // Clear cached playlist ID when channel changes
+                        if channelId != cachedChannelId {
+                            UserDefaults.standard.removeObject(forKey: "youtube_upload_playlist_id")
+                        }
+                        
+                        // Resolve and cache the channel ID
                         await viewModel.resolveAndCacheChannelId(channelId)
+                        
+                        // Start monitoring with new settings
+                        mainViewModel.startMonitoring()
+                        
                         dismiss()
                     }
                 }
@@ -92,4 +111,5 @@ struct SettingsView: View {
 
 #Preview {
     SettingsView()
+        .environmentObject(MainViewModel())
 } 

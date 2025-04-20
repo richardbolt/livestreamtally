@@ -1,5 +1,6 @@
 import Foundation
 import GoogleAPIClientForREST_YouTube
+import GTMSessionFetcherCore
 import os
 
 struct LiveStatus {
@@ -9,19 +10,20 @@ struct LiveStatus {
 }
 
 enum YouTubeError: Error {
-    case apiKeyNotConfigured
-    case channelNotFound
-    case invalidResponse
-    case networkError(Error)
+    case invalidChannelId
+    case invalidApiKey
+    case quotaExceeded
+    case networkError
+    case unknownError
 }
 
 @MainActor
 class YouTubeService {
     private let service: GTLRYouTubeService
     
-    init(apiKey: String?) throws {
-        guard let apiKey = apiKey else {
-            throw YouTubeError.apiKeyNotConfigured
+    init(apiKey: String) throws {
+        guard !apiKey.isEmpty else {
+            throw YouTubeError.invalidApiKey
         }
         
         Logger.info("YouTubeService initialized with API key", category: .youtube)
@@ -29,108 +31,118 @@ class YouTubeService {
         service.apiKey = apiKey
     }
     
-    func resolveChannelIdentifier(_ identifier: String) async throws -> String {
-        Logger.debug("Resolving channel identifier: \(identifier)", category: .youtube)
-        
-        // If it's already a channel ID (starts with UC), return it
-        if identifier.hasPrefix("UC") {
-            return identifier
-        }
-        
-        // Handle @ handles by removing the @ and using forHandle
-        let handle = identifier.hasPrefix("@") ? String(identifier.dropFirst()) : identifier
-        Logger.debug("Resolving handle: \(handle)", category: .youtube)
-        
-        return try await withCheckedThrowingContinuation { continuation in
-            // Create a channels list query
-            let query = GTLRYouTubeQuery_ChannelsList.query(withPart: ["id"])
-            query.forHandle = handle  // Use forHandle instead of forUsername
-            
-            // Execute the query
-            service.executeQuery(query) { (ticket, result, error) in
+    private func executeQuery<T: GTLRObject>(_ query: GTLRQuery) async throws -> T {
+        try await withCheckedThrowingContinuation { continuation in
+            service.executeQuery(query) { (ticket: GTLRServiceTicket, response: Any?, error: Error?) in
                 if let error = error {
-                    Logger.error("Failed to resolve handle: \(error.localizedDescription)", category: .youtube)
-                    continuation.resume(throwing: YouTubeError.networkError(error))
+                    continuation.resume(throwing: error)
                     return
                 }
                 
-                guard let channelList = result as? GTLRYouTube_ChannelListResponse,
-                      let items = channelList.items,
-                      !items.isEmpty,
-                      let channelId = items[0].identifier else {
-                    continuation.resume(throwing: YouTubeError.channelNotFound)
+                guard let response = response as? T else {
+                    continuation.resume(throwing: YouTubeError.unknownError)
                     return
                 }
                 
-                Logger.debug("Resolved handle to channel ID: \(channelId)", category: .youtube)
-                continuation.resume(returning: channelId)
+                continuation.resume(returning: response)
             }
         }
     }
     
-    func checkLiveStatus(channelIdentifier: String) async throws -> (isLive: Bool, viewerCount: Int, title: String) {
-        Logger.debug("Checking live status for channel: \(channelIdentifier)", category: .youtube)
-        
-        return try await withCheckedThrowingContinuation { continuation in
-            // Create a search query for live streams
-            let searchQuery = GTLRYouTubeQuery_SearchList.query(withPart: ["snippet"])
-            searchQuery.channelId = channelIdentifier
-            searchQuery.eventType = "live"
-            searchQuery.type = ["video"]
+    func resolveChannelIdentifier(_ identifier: String) async throws -> (String, String) {
+        // If it's already a channel ID, return it
+        if identifier.hasPrefix("UC") {
+            let query = GTLRYouTubeQuery_ChannelsList.query(withPart: ["contentDetails"])
+            query.identifier = [identifier]
             
-            // Execute the search query
-            service.executeQuery(searchQuery) { [weak self] (ticket, result, error) in
-                guard let self = self else { return }
+            let response: GTLRYouTube_ChannelListResponse = try await executeQuery(query)
+            
+            guard let channel = response.items?.first,
+                  let uploadsPlaylistId = channel.contentDetails?.relatedPlaylists?.uploads else {
+                throw YouTubeError.invalidChannelId
+            }
+            
+            return (identifier, uploadsPlaylistId)
+        }
+        
+        // Otherwise, search for the channel
+        let query = GTLRYouTubeQuery_SearchList.query(withPart: ["id"])
+        query.q = identifier
+        query.type = ["channel"]
+        query.maxResults = 1
+        
+        let response: GTLRYouTube_SearchListResponse = try await executeQuery(query)
+        
+        guard let channelId = response.items?.first?.identifier?.channelId else {
+            throw YouTubeError.invalidChannelId
+        }
+        
+        // Now get the uploads playlist ID
+        let channelQuery = GTLRYouTubeQuery_ChannelsList.query(withPart: ["contentDetails"])
+        channelQuery.identifier = [channelId]
+        
+        let channelResponse: GTLRYouTube_ChannelListResponse = try await executeQuery(channelQuery)
+        
+        guard let channel = channelResponse.items?.first,
+              let uploadsPlaylistId = channel.contentDetails?.relatedPlaylists?.uploads else {
+            throw YouTubeError.invalidChannelId
+        }
+        
+        return (channelId, uploadsPlaylistId)
+    }
+    
+    func checkLiveStatus(channelId: String, uploadPlaylistId: String) async throws -> LiveStatus {
+        // Get the most recent video from the uploads playlist
+        let playlistQuery = GTLRYouTubeQuery_PlaylistItemsList.query(withPart: ["snippet"])
+        playlistQuery.playlistId = uploadPlaylistId
+        playlistQuery.maxResults = 1
+        
+        let playlistResponse: GTLRYouTube_PlaylistItemListResponse = try await executeQuery(playlistQuery)
+        
+        guard let videoId = playlistResponse.items?.first?.snippet?.resourceId?.videoId else {
+            throw YouTubeError.unknownError
+        }
+        
+        // Check if the video is live
+        let videoQuery = GTLRYouTubeQuery_VideosList.query(withPart: ["snippet", "liveStreamingDetails"])
+        videoQuery.identifier = [videoId]
+        
+        let videoResponse: GTLRYouTube_VideoListResponse = try await executeQuery(videoQuery)
+        
+        guard let video = videoResponse.items?.first else {
+            throw YouTubeError.unknownError
+        }
+        
+        let isLive = video.snippet?.liveBroadcastContent == "live"
+        let viewerCount = video.liveStreamingDetails?.concurrentViewers?.intValue ?? 0
+        let title = video.snippet?.title ?? ""
+        
+        return LiveStatus(isLive: isLive, viewerCount: viewerCount, title: title)
+    }
+    
+    private func mapError(_ error: Error) -> YouTubeError {
+        let nsError = error as NSError
+        
+        if nsError.domain == kGTLRErrorObjectDomain {
+            if let errorJSON = nsError.userInfo["error"] as? [String: Any],
+               let errors = errorJSON["errors"] as? [[String: Any]],
+               let firstError = errors.first,
+               let reason = firstError["reason"] as? String {
                 
-                if let error = error {
-                    Logger.error("Failed to check live status: \(error.localizedDescription)", category: .youtube)
-                    continuation.resume(throwing: YouTubeError.networkError(error))
-                    return
-                }
-                
-                guard let searchList = result as? GTLRYouTube_SearchListResponse,
-                      let items = searchList.items,
-                      !items.isEmpty,
-                      let videoId = items[0].identifier?.videoId else {
-                    Logger.debug("No live streams found", category: .youtube)
-                    continuation.resume(returning: (false, 0, ""))
-                    return
-                }
-                
-                // Get live streaming details
-                let videoQuery = GTLRYouTubeQuery_VideosList.query(withPart: ["liveStreamingDetails", "snippet"])
-                videoQuery.identifier = [videoId]
-                
-                // Execute the video query
-                self.service.executeQuery(videoQuery) { (ticket, result, error) in
-                    if let error = error {
-                        Logger.error("Failed to get video details: \(error.localizedDescription)", category: .youtube)
-                        continuation.resume(throwing: YouTubeError.networkError(error))
-                        return
-                    }
-                    
-                    guard let videoList = result as? GTLRYouTube_VideoListResponse,
-                          let videos = videoList.items,
-                          !videos.isEmpty else {
-                        Logger.debug("No live streams found", category: .youtube)
-                        continuation.resume(returning: (false, 0, ""))
-                        return
-                    }
-                    
-                    let video = videos[0]
-                    guard let details = video.liveStreamingDetails,
-                          let title = video.snippet?.title else {
-                        Logger.debug("No live streams found", category: .youtube)
-                        continuation.resume(returning: (false, 0, ""))
-                        return
-                    }
-                    
-                    let viewerCount = Int(truncating: details.concurrentViewers ?? 0)
-                    Logger.debug("Found live stream - viewers: \(viewerCount), title: \(title)", category: .youtube)
-                    continuation.resume(returning: (true, viewerCount, title))
+                switch reason {
+                case "quotaExceeded":
+                    return .quotaExceeded
+                case "invalidChannelId":
+                    return .invalidChannelId
+                case "invalidApiKey":
+                    return .invalidApiKey
+                default:
+                    return .unknownError
                 }
             }
         }
+        
+        return .networkError
     }
 }
 
