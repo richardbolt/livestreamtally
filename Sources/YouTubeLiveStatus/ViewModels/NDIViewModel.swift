@@ -21,14 +21,14 @@ class NDIViewModel: ObservableObject {
         
         Logger.info("Starting NDI streaming", category: .app)
         
-        broadcaster.start(name: "YouTube Live Status")
+        broadcaster.start(name: "YouTube Live Status", viewModel: mainViewModel)
         isStreaming = true
         
         // Start a timer to send frames
         timer = Timer.scheduledTimer(withTimeInterval: 1.0/30.0, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self = self else { return }
-                self.broadcaster.sendFrame(self.mainViewModel)
+                self.broadcaster.sendFrame()
             }
         }
     }

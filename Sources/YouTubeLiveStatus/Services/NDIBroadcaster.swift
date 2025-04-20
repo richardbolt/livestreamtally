@@ -7,6 +7,8 @@ import SwiftUI
 class NDIBroadcaster {
     private var sender: NDIlib_send_instance_t?
     private var isInitialized = false
+    private var hostingView: NSHostingView<NDIBroadcastView>?
+    private var viewModel: MainViewModel?
     
     init() {
         Logger.info("Initializing NDI broadcaster", category: .app)
@@ -25,13 +27,20 @@ class NDIBroadcaster {
         }
     }
     
-    func start(name: String) {
+    func start(name: String, viewModel: MainViewModel) {
         guard isInitialized else {
             Logger.error("Cannot start NDI - not initialized", category: .app)
             return
         }
         
         Logger.info("Starting NDI broadcast with name: \(name)", category: .app)
+        
+        self.viewModel = viewModel
+        
+        // Create persistent view that will live for the duration of broadcasting
+        let ndiView = NDIBroadcastView(viewModel: viewModel)
+        hostingView = NSHostingView(rootView: ndiView)
+        hostingView?.frame = CGRect(x: 0, y: 0, width: 1280, height: 720)
         
         var sendDesc = NDIlib_send_create_t()
         name.withCString { cString in
@@ -47,6 +56,8 @@ class NDIBroadcaster {
     }
     
     func stop() {
+        hostingView = nil
+        viewModel = nil
         if let sender = sender {
             NDIlib_send_destroy(sender)
             self.sender = nil
@@ -78,19 +89,12 @@ class NDIBroadcaster {
         }
     }
     
-    func sendFrame(_ viewModel: MainViewModel) {
-        guard let sender = sender else {
-            Logger.error("No NDI sender available", category: .app)
+    func sendFrame() {
+        guard let sender = sender,
+              let hostingView = hostingView else {
+            Logger.error("No NDI sender or hosting view available", category: .app)
             return
         }
-        
-        // Create the NDI broadcast view
-        let ndiView = NDIBroadcastView(viewModel: viewModel)
-            .frame(width: 1280, height: 720)
-        
-        // Create an NSHostingView to render the SwiftUI view
-        let hostingView = NSHostingView(rootView: ndiView)
-        hostingView.frame = CGRect(x: 0, y: 0, width: 1280, height: 720)
         
         // Force the hosting view to layout
         hostingView.layoutSubtreeIfNeeded()

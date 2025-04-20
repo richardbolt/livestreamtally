@@ -97,7 +97,7 @@ struct ContentView: View {
 }
 
 struct NDIBroadcastView: View {
-    let viewModel: MainViewModel
+    @ObservedObject var viewModel: MainViewModel
     
     var body: some View {
         ZStack {
