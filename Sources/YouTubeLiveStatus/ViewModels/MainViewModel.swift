@@ -4,7 +4,14 @@ import os
 
 @MainActor
 final class MainViewModel: ObservableObject {
-    @Published var isLive = false
+    @Published var isLive = false {
+        didSet {
+            if oldValue != isLive {
+                // Update timer interval when live status changes
+                updateTimerInterval()
+            }
+        }
+    }
     @Published var viewerCount = 0
     @Published var title = ""
     @Published var error: String?
@@ -17,6 +24,10 @@ final class MainViewModel: ObservableObject {
     private var youtubeService: YouTubeService?
     private var timer: Timer?
     
+    // Timer intervals
+    private let liveCheckInterval: TimeInterval = 30.0
+    private let notLiveCheckInterval: TimeInterval = 60.0
+    
     init(apiKey: String? = nil) {
         if let apiKey = apiKey, !apiKey.isEmpty {
             do {
@@ -24,6 +35,20 @@ final class MainViewModel: ObservableObject {
                 self.error = nil
             } catch let serviceError {
                 self.error = "Failed to initialize YouTube service: \(serviceError.localizedDescription)"
+            }
+        }
+    }
+    
+    private func updateTimerInterval() {
+        guard timer != nil else { return }
+        
+        // Stop existing timer
+        timer?.invalidate()
+        
+        // Create new timer with appropriate interval
+        timer = Timer.scheduledTimer(withTimeInterval: isLive ? liveCheckInterval : notLiveCheckInterval, repeats: true) { [weak self] _ in
+            Task { [weak self] in
+                await self?.checkLiveStatus()
             }
         }
     }
@@ -51,8 +76,8 @@ final class MainViewModel: ObservableObject {
             isLoading = false
         }
         
-        // Then start periodic checks
-        timer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
+        // Then start periodic checks with initial interval of 1 minute
+        timer = Timer.scheduledTimer(withTimeInterval: notLiveCheckInterval, repeats: true) { [weak self] _ in
             Task { [weak self] in
                 await self?.checkLiveStatus()
             }
