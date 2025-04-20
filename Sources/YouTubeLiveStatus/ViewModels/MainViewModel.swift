@@ -27,6 +27,7 @@ final class MainViewModel: ObservableObject {
     }
     
     func startMonitoring() {
+        Logger.debug("Monitoring timer started", category: .main)
         guard youtubeService != nil else {
             error = "YouTube service not initialized. Please check your API key."
             return
@@ -51,11 +52,13 @@ final class MainViewModel: ObservableObject {
                 await self?.checkLiveStatus()
             }
         }
+        timer?.fire()
     }
     
     func stopMonitoring() {
         timer?.invalidate()
         timer = nil
+        Logger.info("Monitoring stopped", category: .main)
     }
     
     private func checkLiveStatus() async {
@@ -74,6 +77,7 @@ final class MainViewModel: ObservableObject {
             isLive = status.isLive
             viewerCount = status.viewerCount
             title = status.title
+            Logger.debug("Status updated - isLive: \(isLive), viewers: \(viewerCount), title: \(title)", category: .main)
             error = nil
             
         } catch let serviceError {
@@ -82,6 +86,7 @@ final class MainViewModel: ObservableObject {
             } else {
                 self.error = "Failed to check live status: \(serviceError.localizedDescription)"
             }
+            Logger.error("Failed to check live status: \(serviceError.localizedDescription)", category: .main)
         }
     }
     

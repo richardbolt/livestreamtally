@@ -18,9 +18,9 @@ class SettingsViewModel: ObservableObject {
             let (resolvedId, uploadPlaylistId) = try await service.resolveChannelIdentifier(channelId)
             UserDefaults.standard.set(resolvedId, forKey: "youtube_channel_id_cached")
             UserDefaults.standard.set(uploadPlaylistId, forKey: "youtube_upload_playlist_id")
-            os_log("Cached channel ID and playlist ID", log: .default, type: .info)
+            Logger.debug("Cached channel ID and playlist ID", category: .main)
         } catch {
-            os_log("Failed to resolve channel ID: %{public}@", log: .default, type: .error, error.localizedDescription)
+            Logger.error("Failed to resolve channel ID: \(error.localizedDescription)", category: .main)
         }
     }
 }

@@ -20,6 +20,7 @@ enum YouTubeError: Error {
 @MainActor
 class YouTubeService {
     private let service: GTLRYouTubeService
+    private var currentLiveVideoId: String?
     
     init(apiKey: String) throws {
         guard !apiKey.isEmpty else {
@@ -92,7 +93,31 @@ class YouTubeService {
     }
     
     func checkLiveStatus(channelId: String, uploadPlaylistId: String) async throws -> LiveStatus {
-        // Get the most recent video from the uploads playlist
+        // If we have a current live video ID, check that video first
+        if let videoId = currentLiveVideoId {
+            let videoQuery = GTLRYouTubeQuery_VideosList.query(withPart: ["snippet", "liveStreamingDetails"])
+            videoQuery.identifier = [videoId]
+            
+            let videoResponse: GTLRYouTube_VideoListResponse = try await executeQuery(videoQuery)
+            
+            guard let video = videoResponse.items?.first else {
+                currentLiveVideoId = nil
+                throw YouTubeError.unknownError
+            }
+            
+            let isLive = video.snippet?.liveBroadcastContent == "live"
+            let viewerCount = video.liveStreamingDetails?.concurrentViewers?.intValue ?? 0
+            let title = video.snippet?.title ?? ""
+            
+            // If video is no longer live, clear the ID and we'll check the playlist next time
+            if !isLive {
+                currentLiveVideoId = nil
+            }
+            
+            return LiveStatus(isLive: isLive, viewerCount: viewerCount, title: title)
+        }
+        
+        // If no current live video or it's no longer live, check the most recent video
         let playlistQuery = GTLRYouTubeQuery_PlaylistItemsList.query(withPart: ["snippet"])
         playlistQuery.playlistId = uploadPlaylistId
         playlistQuery.maxResults = 1
@@ -116,6 +141,11 @@ class YouTubeService {
         let isLive = video.snippet?.liveBroadcastContent == "live"
         let viewerCount = video.liveStreamingDetails?.concurrentViewers?.intValue ?? 0
         let title = video.snippet?.title ?? ""
+        
+        // If the video is live, store its ID for future checks
+        if isLive {
+            currentLiveVideoId = videoId
+        }
         
         return LiveStatus(isLive: isLive, viewerCount: viewerCount, title: title)
     }

@@ -6,12 +6,11 @@ import NDIWrapper
 class NDIBroadcaster {
     private var sender: NDIlib_send_instance_t?
     private var isInitialized = false
-    private let logger = Logger.logger(for: .app)
     
     init() {
-        os_log("Initializing NDI broadcaster", log: logger, type: .info)
+        Logger.info("Initializing NDI broadcaster", category: .app)
         guard NDIlib_initialize() else {
-            os_log("Failed to initialize NDI", log: logger, type: .error)
+            Logger.error("Failed to initialize NDI", category: .app)
             return
         }
         isInitialized = true
@@ -21,17 +20,17 @@ class NDIBroadcaster {
         stop()
         if isInitialized {
             NDIlib_destroy()
-            os_log("NDI destroyed", log: logger, type: .info)
+            Logger.info("NDI destroyed", category: .app)
         }
     }
     
     func start(name: String) {
         guard isInitialized else {
-            os_log("Cannot start NDI - not initialized", log: logger, type: .error)
+            Logger.error("Cannot start NDI - not initialized", category: .app)
             return
         }
         
-        os_log("Starting NDI broadcast with name: %{public}@", log: logger, type: .info, name)
+        Logger.info("Starting NDI broadcast with name: \(name)", category: .app)
         
         var sendDesc = NDIlib_send_create_t()
         name.withCString { cString in
@@ -41,7 +40,7 @@ class NDIBroadcaster {
         sender = NDIlib_send_create(&sendDesc)
         
         guard sender != nil else {
-            os_log("Failed to create NDI sender", log: logger, type: .error)
+            Logger.error("Failed to create NDI sender", category: .app)
             return
         }
     }
@@ -50,19 +49,17 @@ class NDIBroadcaster {
         if let sender = sender {
             NDIlib_send_destroy(sender)
             self.sender = nil
-            os_log("NDI broadcast stopped", log: logger, type: .info)
+            Logger.info("NDI broadcast stopped", category: .app)
         }
     }
     
     func sendTally(isLive: Bool, viewerCount: Int, title: String) {
         guard let sender = sender else {
-            os_log("Cannot send tally - NDI sender not initialized", log: logger, type: .error)
+            Logger.error("Cannot send tally - NDI sender not initialized", category: .app)
             return
         }
         
-        os_log("Sending NDI tally - isLive: %{public}@, viewers: %{public}d, title: %{public}@", 
-              log: logger, type: .debug, 
-              isLive ? "true" : "false", viewerCount, title)
+        Logger.debug("Sending NDI tally - isLive: \(isLive), viewers: \(viewerCount), title: \(title)", category: .app)
         
         var metadata = "<ndi_metadata "
         metadata += "isLive=\"\(isLive ? "true" : "false")\" "
@@ -82,19 +79,19 @@ class NDIBroadcaster {
     
     func sendFrame(_ view: NSView) {
         guard let sender = sender else {
-            os_log("No NDI sender available", log: logger, type: .error)
+            Logger.error("No NDI sender available", category: .app)
             return
         }
         
         guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else {
-            os_log("Failed to create bitmap representation", log: logger, type: .error)
+            Logger.error("Failed to create bitmap representation", category: .app)
             return
         }
         
         view.cacheDisplay(in: view.bounds, to: bitmap)
         
         guard let cgImage = bitmap.cgImage else {
-            os_log("Failed to get CGImage from bitmap", log: logger, type: .error)
+            Logger.error("Failed to get CGImage from bitmap", category: .app)
             return
         }
         
@@ -116,7 +113,7 @@ class NDIBroadcaster {
                                     space: colorSpace,
                                     bitmapInfo: bitmapInfo) else {
             buffer.deallocate()
-            os_log("Failed to create CGContext", log: logger, type: .error)
+            Logger.error("Failed to create CGContext", category: .app)
             return
         }
         
