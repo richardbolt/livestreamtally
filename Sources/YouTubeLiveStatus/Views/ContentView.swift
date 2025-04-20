@@ -11,39 +11,41 @@ struct ContentView: View {
     
     var body: some View {
         GeometryReader { geometry in
+            let scale = geometry.size.width / 1280 // Base scale factor
+            
             ZStack {
                 Color.black
                     .edgesIgnoringSafeArea(.all)
                 
-                VStack(spacing: 20) {
+                VStack(spacing: 20 * scale) {
                     if let error = viewModel.error {
                         Text(error)
-                            .font(.title)
+                            .font(.system(size: 24 * scale))
                             .foregroundColor(.red)
-                            .padding()
+                            .padding(20 * scale)
                     }
                     
                     if viewModel.isLive {
                         Text("🔴 ON AIR")
-                            .font(.system(size: 100, weight: .bold))
+                            .font(.system(size: 200 * scale, weight: .bold))
                             .foregroundColor(.red)
                         
                         Text("Viewers: \(viewModel.viewerCount)")
-                            .font(.system(size: 48))
+                            .font(.system(size: 48 * scale))
                             .foregroundColor(.white)
                         
                         Text(viewModel.title)
-                            .font(.system(size: 36))
+                            .font(.system(size: 36 * scale))
                             .foregroundColor(.white)
                             .multilineTextAlignment(.center)
-                            .padding(.horizontal)
+                            .padding(.horizontal, 40 * scale)
                     } else {
                         Text("⚪ OFF AIR")
-                            .font(.system(size: 100, weight: .medium))
+                            .font(.system(size: 200 * scale, weight: .medium))
                             .foregroundColor(.gray)
                     }
                 }
-                .padding(40)
+                .padding(40 * scale)
             }
         }
         .aspectRatio(16.0/9.0, contentMode: .fit)
