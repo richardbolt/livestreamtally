@@ -2,16 +2,48 @@ import SwiftUI
 
 @main
 struct YouTubeLiveStatusApp: App {
-    @StateObject private var ndiViewModel = NDIViewModel()
     @StateObject private var mainViewModel = MainViewModel()
+    @StateObject private var ndiViewModel: NDIViewModel
+    
+    init() {
+        let mainVM = MainViewModel()
+        _mainViewModel = StateObject(wrappedValue: mainVM)
+        _ndiViewModel = StateObject(wrappedValue: NDIViewModel(mainViewModel: mainVM))
+    }
     
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environmentObject(ndiViewModel)
+                .frame(minWidth: 640, minHeight: 360)
+                .frame(maxWidth: 1920, maxHeight: 1080)
                 .environmentObject(mainViewModel)
+                .environmentObject(ndiViewModel)
+                .onAppear {
+                    // Ensure window is visible and properly sized
+                    if let window = NSApp.windows.first(where: { $0.title == "YouTube Live Status" }) {
+                        window.center()
+                        window.makeKeyAndOrderFront(nil)
+                        
+                        // Set initial size to 1280x720 (16:9)
+                        window.setFrame(NSRect(x: window.frame.origin.x,
+                                             y: window.frame.origin.y,
+                                             width: 1280,
+                                             height: 720),
+                                      display: true)
+                        
+                        // Make sure window appears in dock
+                        window.collectionBehavior = [.managed]
+                        
+                        // Enforce 16:9 aspect ratio
+                        window.aspectRatio = NSSize(width: 16, height: 9)
+                    }
+                }
+                .onDisappear {
+                    // Stop NDI streaming when window is closed
+                    ndiViewModel.stopStreaming()
+                }
         }
-        .windowStyle(.hiddenTitleBar)
+        //.windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)
         .defaultSize(width: 1280, height: 720)
         .commands {
@@ -37,7 +69,6 @@ struct YouTubeLiveStatusApp: App {
         
         Settings {
             SettingsView()
-                .environmentObject(ndiViewModel)
                 .environmentObject(mainViewModel)
         }
     }

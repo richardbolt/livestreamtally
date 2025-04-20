@@ -2,6 +2,7 @@ import Foundation
 import AppKit
 import os
 import NDIWrapper
+import SwiftUI
 
 class NDIBroadcaster {
     private var sender: NDIlib_send_instance_t?
@@ -77,51 +78,38 @@ class NDIBroadcaster {
         }
     }
     
-    func sendFrame(_ view: NSView) {
+    func sendFrame(_ viewModel: MainViewModel) {
         guard let sender = sender else {
             Logger.error("No NDI sender available", category: .app)
             return
         }
         
-        // Calculate the actual content rect (excluding letterboxing)
-        let viewBounds = view.bounds
-        let targetAspect = 16.0/9.0
-        let currentAspect = viewBounds.width / viewBounds.height
+        // Create the NDI broadcast view
+        let ndiView = NDIBroadcastView(viewModel: viewModel)
+            .frame(width: 1280, height: 720)
         
-        let contentRect: CGRect
-        if currentAspect > targetAspect {
-            // Letterboxing on top/bottom
-            let contentHeight = viewBounds.width / targetAspect
-            let y = (viewBounds.height - contentHeight) / 2
-            contentRect = CGRect(x: 0, y: y, width: viewBounds.width, height: contentHeight)
-        } else {
-            // Letterboxing on sides
-            let contentWidth = viewBounds.height * targetAspect
-            let x = (viewBounds.width - contentWidth) / 2
-            contentRect = CGRect(x: x, y: 0, width: contentWidth, height: viewBounds.height)
-        }
+        // Create an NSHostingView to render the SwiftUI view
+        let hostingView = NSHostingView(rootView: ndiView)
+        hostingView.frame = CGRect(x: 0, y: 0, width: 1280, height: 720)
         
-        // Capture only the content area
-        guard let bitmap = view.bitmapImageRepForCachingDisplay(in: contentRect) else {
+        // Force the hosting view to layout
+        hostingView.layoutSubtreeIfNeeded()
+        
+        guard let bitmap = hostingView.bitmapImageRepForCachingDisplay(in: hostingView.bounds) else {
             Logger.error("Failed to create bitmap representation", category: .app)
             return
         }
         
-        view.cacheDisplay(in: contentRect, to: bitmap)
+        hostingView.cacheDisplay(in: hostingView.bounds, to: bitmap)
         
         guard let cgImage = bitmap.cgImage else {
             Logger.error("Failed to get CGImage from bitmap", category: .app)
             return
         }
         
-        // Target dimensions for NDI output
         let targetWidth = 1280
         let targetHeight = 720
         let targetBytesPerRow = targetWidth * 4
-        
-        // Source dimensions from the content area
-        let sourceWidth = Int(contentRect.width)
-        let sourceHeight = Int(contentRect.height)
         
         let colorSpace = CGColorSpaceCreateDeviceRGB()
         let bitmapInfo = CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
@@ -140,23 +128,7 @@ class NDIBroadcaster {
             return
         }
         
-        // Clear the context first
-        context.setFillColor(CGColor.black)
-        context.fill(CGRect(x: 0, y: 0, width: targetWidth, height: targetHeight))
-        
-        // Calculate scaling to maintain aspect ratio
-        let scaleX = CGFloat(targetWidth) / CGFloat(sourceWidth)
-        let scaleY = CGFloat(targetHeight) / CGFloat(sourceHeight)
-        let scale = min(scaleX, scaleY)
-        
-        // Calculate centered drawing rect
-        let scaledWidth = CGFloat(sourceWidth) * scale
-        let scaledHeight = CGFloat(sourceHeight) * scale
-        let x = (CGFloat(targetWidth) - scaledWidth) / 2
-        let y = (CGFloat(targetHeight) - scaledHeight) / 2
-        
-        let drawRect = CGRect(x: x, y: y, width: scaledWidth, height: scaledHeight)
-        context.draw(cgImage, in: drawRect)
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: targetWidth, height: targetHeight))
         
         var videoFrame = NDIlib_video_frame_v2_t()
         videoFrame.xres = Int32(targetWidth)
