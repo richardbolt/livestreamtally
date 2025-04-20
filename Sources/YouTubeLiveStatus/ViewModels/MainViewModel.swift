@@ -11,6 +11,7 @@ final class MainViewModel: ObservableObject {
     @Published var isLoading = false
     
     @AppStorage("youtube_channel_id") private var channelId = ""
+    @AppStorage("youtube_channel_id_cached") private var cachedChannelId = ""
     @AppStorage("youtube_upload_playlist_id") private var uploadPlaylistId = ""
     
     private var youtubeService: YouTubeService?
@@ -69,14 +70,14 @@ final class MainViewModel: ObservableObject {
         guard let youtubeService = youtubeService else { return }
         
         do {
-            // If we don't have a playlist ID or it's for a different channel, resolve it
-            if uploadPlaylistId.isEmpty {
+            // If we don't have a cached channel ID or playlist ID, resolve it
+            if cachedChannelId.isEmpty || uploadPlaylistId.isEmpty {
                 let (resolvedChannelId, resolvedPlaylistId) = try await youtubeService.resolveChannelIdentifier(channelId)
-                channelId = resolvedChannelId // Update to canonical form if needed
+                cachedChannelId = resolvedChannelId
                 uploadPlaylistId = resolvedPlaylistId
             }
             
-            let status = try await youtubeService.checkLiveStatus(channelId: channelId, uploadPlaylistId: uploadPlaylistId)
+            let status = try await youtubeService.checkLiveStatus(channelId: cachedChannelId, uploadPlaylistId: uploadPlaylistId)
             
             isLive = status.isLive
             viewerCount = status.viewerCount
@@ -104,10 +105,10 @@ final class MainViewModel: ObservableObject {
     }
     
     func updateChannelId(_ newChannelId: String) {
-        // Clear the cached playlist ID when channel ID changes
-        if newChannelId != channelId {
-            uploadPlaylistId = ""
-        }
+        // Only update the user-entered channel ID, don't touch the cached one
         channelId = newChannelId
+        // Clear the cached values when the channel ID changes
+        cachedChannelId = ""
+        uploadPlaylistId = ""
     }
 } 
