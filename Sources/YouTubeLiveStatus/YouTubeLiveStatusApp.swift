@@ -36,6 +36,9 @@ struct YouTubeLiveStatusApp: App {
                         
                         // Enforce 16:9 aspect ratio
                         window.aspectRatio = NSSize(width: 16, height: 9)
+                        
+                        // Set window delegate to handle window closing
+                        window.delegate = WindowDelegate.shared
                     }
                 }
                 .onDisappear {
@@ -66,6 +69,20 @@ struct YouTubeLiveStatusApp: App {
             SettingsView()
                 .environmentObject(mainViewModel)
         }
+    }
+}
+
+// Window delegate to handle window closing
+class WindowDelegate: NSObject, NSWindowDelegate {
+    static let shared = WindowDelegate()
+    
+    func windowWillClose(_ notification: Notification) {
+        // Exit the app when the main window is closed
+        NSApplication.shared.terminate(nil)
+    }
+    
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        return true
     }
 }
 
