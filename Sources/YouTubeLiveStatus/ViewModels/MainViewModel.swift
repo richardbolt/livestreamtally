@@ -103,7 +103,7 @@ final class MainViewModel: ObservableObject {
             
             let status = try await youtubeService.checkLiveStatus(channelId: cachedChannelId, uploadPlaylistId: uploadPlaylistId)
             
-            isLive = status.isLive
+            isLive = !isLive // status.isLive
             viewerCount = status.viewerCount
             title = status.title
             Logger.debug("Status updated - isLive: \(isLive), viewers: \(viewerCount), title: \(title), videoId: \(status.videoId)", category: .main)

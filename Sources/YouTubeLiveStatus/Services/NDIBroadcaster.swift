@@ -7,7 +7,7 @@ import SwiftUI
 class NDIBroadcaster {
     private var sender: NDIlib_send_instance_t?
     private var isInitialized = false
-    private var hostingView: NSHostingView<NDIBroadcastView>?
+    private var viewToCapture: NSView?
     private var viewModel: MainViewModel?
     
     init() {
@@ -37,10 +37,39 @@ class NDIBroadcaster {
         
         self.viewModel = viewModel
         
-        // Create persistent view that will live for the duration of broadcasting
-        let ndiView = NDIBroadcastView(viewModel: viewModel)
-        hostingView = NSHostingView(rootView: ndiView)
-        hostingView?.frame = CGRect(x: 0, y: 0, width: 1280, height: 720)
+        guard let window = NSApplication.shared.windows.first,
+              let contentView = window.contentView else {
+            Logger.error("Could not find main content view", category: .app)
+            return
+        }
+
+        Logger.info("Window frame: \(window.frame)", category: .app)
+        Logger.info("Content view frame: \(contentView.frame)", category: .app)
+        Logger.info("Content view actual type: \(String(describing: type(of: contentView)))", category: .app)
+        Logger.info("Content view superclass: \(String(describing: type(of: contentView).superclass()))", category: .app)
+        Logger.info("Number of subviews: \(contentView.subviews.count)", category: .app)
+        
+        // Log all subviews and their types to understand the view hierarchy
+        for (index, subview) in contentView.subviews.enumerated() {
+            Logger.info("Subview [\(index)] class: \(type(of: subview)), frame: \(subview.frame)", category: .app)
+            
+            // Log the class name and any protocols it conforms to
+            let mirror = Mirror(reflecting: subview)
+            Logger.info("Subview [\(index)] protocols: \(mirror.subjectType)", category: .app)
+            
+            // If this is a hosting view, log its type information
+            if let hostingView = subview as? NSHostingView<ContentView> {
+                Logger.info("Found ContentView hosting view at index \(index)", category: .app)
+                self.viewToCapture = hostingView
+                break
+            }
+        }
+        
+        if viewToCapture == nil {
+            // If we didn't find a hosting view, use the content view itself
+            Logger.info("Using content view directly", category: .app)
+            self.viewToCapture = contentView
+        }
         
         var sendDesc = NDIlib_send_create_t()
         name.withCString { cString in
@@ -56,7 +85,7 @@ class NDIBroadcaster {
     }
     
     func stop() {
-        hostingView = nil
+        viewToCapture = nil
         viewModel = nil
         if let sender = sender {
             NDIlib_send_destroy(sender)
@@ -91,20 +120,23 @@ class NDIBroadcaster {
     
     func sendFrame() {
         guard let sender = sender,
-              let hostingView = hostingView else {
-            Logger.error("No NDI sender or hosting view available", category: .app)
+              let viewToCapture = viewToCapture else {
+            Logger.error("No NDI sender or view available", category: .app)
             return
         }
         
-        // Force the hosting view to layout
-        hostingView.layoutSubtreeIfNeeded()
+        // Ensure view is ready for display
+        viewToCapture.setNeedsDisplay(viewToCapture.bounds)
+        viewToCapture.layoutSubtreeIfNeeded()
+        viewToCapture.displayIfNeeded()
         
-        guard let bitmap = hostingView.bitmapImageRepForCachingDisplay(in: hostingView.bounds) else {
+        // First capture at view's actual size
+        guard let bitmap = viewToCapture.bitmapImageRepForCachingDisplay(in: viewToCapture.bounds) else {
             Logger.error("Failed to create bitmap representation", category: .app)
             return
         }
         
-        hostingView.cacheDisplay(in: hostingView.bounds, to: bitmap)
+        viewToCapture.cacheDisplay(in: viewToCapture.bounds, to: bitmap)
         
         guard let cgImage = bitmap.cgImage else {
             Logger.error("Failed to get CGImage from bitmap", category: .app)
@@ -132,7 +164,30 @@ class NDIBroadcaster {
             return
         }
         
-        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: targetWidth, height: targetHeight))
+        // Clear the context with a black background
+        context.setFillColor(CGColor(red: 0, green: 0, blue: 0, alpha: 1))
+        context.fill(CGRect(x: 0, y: 0, width: targetWidth, height: targetHeight))
+        
+        // Calculate aspect-preserving dimensions
+        let sourceAspect = Double(cgImage.width) / Double(cgImage.height)
+        let targetAspect = Double(targetWidth) / Double(targetHeight)
+        
+        var drawRect = CGRect(x: 0, y: 0, width: targetWidth, height: targetHeight)
+        
+        if sourceAspect > targetAspect {
+            // Source is wider - fit to width
+            let newHeight = Double(targetWidth) / sourceAspect
+            let yOffset = (Double(targetHeight) - newHeight) / 2
+            drawRect = CGRect(x: 0, y: yOffset, width: Double(targetWidth), height: newHeight)
+        } else {
+            // Source is taller - fit to height
+            let newWidth = Double(targetHeight) * sourceAspect
+            let xOffset = (Double(targetWidth) - newWidth) / 2
+            drawRect = CGRect(x: xOffset, y: 0, width: newWidth, height: Double(targetHeight))
+        }
+        
+        // Draw with proper aspect ratio
+        context.draw(cgImage, in: drawRect)
         
         var videoFrame = NDIlib_video_frame_v2_t()
         videoFrame.xres = Int32(targetWidth)
