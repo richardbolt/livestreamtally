@@ -73,17 +73,17 @@ struct ContentView: View {
                 }
                 .padding(.vertical, geometry.size.height * 0.05)
                 
+                Text(viewModel.title)
+                    .font(.system(size: geometry.size.width * 0.05))
+                    .foregroundColor(.white)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                
                 if viewModel.isLive {
                     Text("Viewers: \(viewModel.viewerCount)")
                         .font(.system(size: geometry.size.width * 0.04))
                         .foregroundColor(.gray)
-                    
-                    Text(viewModel.title)
-                        .font(.system(size: geometry.size.width * 0.05))
-                        .foregroundColor(.white)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
