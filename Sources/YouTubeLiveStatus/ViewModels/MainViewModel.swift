@@ -39,6 +39,10 @@ final class MainViewModel: ObservableObject {
         }
     }
     
+    func getAPIKey() -> String? {
+        return KeychainManager.shared.retrieveAPIKey()
+    }
+    
     private func updateTimerInterval() {
         guard timer != nil else { return }
         
@@ -120,11 +124,15 @@ final class MainViewModel: ObservableObject {
     }
     
     func updateApiKey(_ newApiKey: String) {
-        do {
-            youtubeService = try YouTubeService(apiKey: newApiKey)
-            error = nil
-        } catch let serviceError {
-            error = "Failed to initialize YouTube service: \(serviceError.localizedDescription)"
+        if KeychainManager.shared.saveAPIKey(newApiKey) {
+            do {
+                youtubeService = try YouTubeService(apiKey: newApiKey)
+                error = nil
+            } catch let serviceError {
+                error = "Failed to initialize YouTube service: \(serviceError.localizedDescription)"
+            }
+        } else {
+            error = "Failed to save API key to Keychain"
         }
     }
     

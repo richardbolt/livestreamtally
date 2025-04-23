@@ -7,7 +7,7 @@ struct ContentView: View {
     private let baseHeight: CGFloat = 720
     
     init() {
-        let apiKey = UserDefaults.standard.string(forKey: "youtube_api_key") ?? ""
+        let apiKey = KeychainManager.shared.retrieveAPIKey() ?? ""
         _viewModel = StateObject(wrappedValue: MainViewModel(apiKey: apiKey))
     }
     

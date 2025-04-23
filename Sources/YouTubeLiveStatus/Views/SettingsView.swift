@@ -26,7 +26,6 @@ class SettingsViewModel: ObservableObject {
 }
 
 struct SettingsView: View {
-    @AppStorage("youtube_api_key") private var apiKey = ""
     @AppStorage("youtube_channel_id") private var channelId = ""
     @AppStorage("youtube_channel_id_cached") private var cachedChannelId = ""
     @AppStorage("youtube_upload_playlist_id") private var uploadPlaylistId = ""
@@ -36,7 +35,8 @@ struct SettingsView: View {
     @EnvironmentObject private var mainViewModel: MainViewModel
     
     // Store initial values to detect changes
-    private let initialApiKey = UserDefaults.standard.string(forKey: "youtube_api_key") ?? ""
+    @State private var apiKey = ""
+    private let initialApiKey = KeychainManager.shared.retrieveAPIKey() ?? ""
     private let initialChannelId = UserDefaults.standard.string(forKey: "youtube_channel_id") ?? ""
     
     var body: some View {
@@ -113,6 +113,9 @@ struct SettingsView: View {
         }
         .frame(width: 440, height: 300)
         .preferredColorScheme(.dark)
+        .onAppear {
+            apiKey = KeychainManager.shared.retrieveAPIKey() ?? ""
+        }
     }
 }
 
