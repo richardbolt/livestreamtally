@@ -45,25 +45,65 @@ struct SettingsView: View {
                 Section {
                     VStack(alignment: .leading, spacing: 24) {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("API Key")
-                                .foregroundStyle(.secondary)
+                            HStack {
+                                Text("API Key")
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Button(action: {
+                                    NSWorkspace.shared.open(URL(string: "https://console.cloud.google.com/apis/credentials")!)
+                                }) {
+                                    Image(systemName: "questionmark.circle")
+                                        .foregroundColor(.blue)
+                                }
+                                .buttonStyle(.plain)
+                                .help("Click to open Google Cloud Console to create an API key")
+                            }
+                            
                             SecureField("", text: $apiKey)
                                 .textFieldStyle(.plain)
                                 .padding(8)
                                 .background(Color(NSColor.textBackgroundColor))
                                 .cornerRadius(6)
-                                .help("Your YouTube Data API v3 key")
+                                .help("""
+                                To get a YouTube Data API v3 key:
+                                1. Go to console.cloud.google.com
+                                2. Create a new project (or select existing)
+                                3. Navigate to APIs & Services > Library
+                                4. Search for and enable "YouTube Data API v3"
+                                5. Go to Credentials and create an API key
+                                6. Copy the key and paste it here
+                                """)
+                            
+                            Link("How to get a YouTube API key", destination: URL(string: "https://developers.google.com/youtube/v3/getting-started")!)
+                                .font(.caption)
+                                .padding(.top, 4)
                         }
                         
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Channel ID")
-                                .foregroundStyle(.secondary)
+                            HStack {
+                                Text("Channel ID or Handle")
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Button(action: {
+                                    NSWorkspace.shared.open(URL(string: "https://www.youtube.com/account_advanced")!)
+                                }) {
+                                    Image(systemName: "questionmark.circle")
+                                        .foregroundColor(.blue)
+                                }
+                                .buttonStyle(.plain)
+                                .help("Click to go to YouTube Advanced account settings to find your Channel ID")
+                            }
+                            
                             TextField("", text: $channelId)
                                 .textFieldStyle(.plain)
                                 .padding(8)
                                 .background(Color(NSColor.textBackgroundColor))
                                 .cornerRadius(6)
-                                .help("Your YouTube channel ID")
+                                .help("Your YouTube channel ID from your channel's advanced settings page")
+                            
+                            Link("How to find your YouTube Channel ID", destination: URL(string: "https://support.google.com/youtube/answer/3250431")!)
+                                .font(.caption)
+                                .padding(.top, 4)
                         }
                     }
                     .padding(.vertical, 8)
@@ -111,7 +151,7 @@ struct SettingsView: View {
             .padding(16)
             .background(Color(NSColor.controlBackgroundColor))
         }
-        .frame(width: 440, height: 300)
+        .frame(width: 440, height: 340)  // Increased height to accommodate new elements
         .preferredColorScheme(.dark)
         .onAppear {
             apiKey = KeychainManager.shared.retrieveAPIKey() ?? ""
