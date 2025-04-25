@@ -3,6 +3,9 @@
 # Exit on error
 set -e
 
+# Optional: Set your Apple Developer ID here
+SIGN_IDENTITY="${SIGN_IDENTITY:-"-"}" # Use "-" for ad-hoc
+
 echo "Building YouTube Live Status app..."
 
 # Clean up any existing app bundle
@@ -93,21 +96,20 @@ ln -sfh A Versions/Current
 ln -sfh Versions/Current/NDI NDI
 ln -sfh Versions/Current/Resources Resources
 ln -sfh Versions/Current/Headers Headers
-ln -sfh Versions/Current/Resources/Info.plist Info.plist
 cd ../../../..
 
 # Update install name
 install_name_tool -change @rpath/libndi.dylib @executable_path/../Frameworks/NDI.framework/NDI YouTubeLiveStatus.app/Contents/MacOS/YouTubeLiveStatus
 
 # Sign the NDI framework
-codesign --force --sign - --entitlements YouTubeLiveStatus.entitlements YouTubeLiveStatus.app/Contents/Frameworks/NDI.framework
+#codesign --force --sign - --entitlements YouTubeLiveStatus.entitlements YouTubeLiveStatus.app/Contents/Frameworks/NDI.framework
 
 # Clean up iconset
 rm -rf "$ICONSET"
 
 # Code sign the app with entitlements
 echo "Code signing with entitlements..."
-codesign --force --deep --sign - --entitlements YouTubeLiveStatus.entitlements --identifier com.youtubelivestatus.app YouTubeLiveStatus.app
+codesign --force --deep --options runtime --sign "$SIGN_IDENTITY" --entitlements YouTubeLiveStatus.entitlements --identifier com.youtubelivestatus.app YouTubeLiveStatus.app
 
 # Verify code signing
 echo "Verifying code signing..."
