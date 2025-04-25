@@ -101,9 +101,6 @@ cd ../../../..
 # Update install name
 install_name_tool -change @rpath/libndi.dylib @executable_path/../Frameworks/NDI.framework/NDI YouTubeLiveStatus.app/Contents/MacOS/YouTubeLiveStatus
 
-# Sign the NDI framework
-#codesign --force --sign - --entitlements YouTubeLiveStatus.entitlements YouTubeLiveStatus.app/Contents/Frameworks/NDI.framework
-
 # Clean up iconset
 rm -rf "$ICONSET"
 

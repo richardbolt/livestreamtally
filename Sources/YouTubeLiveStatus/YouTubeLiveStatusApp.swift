@@ -2,11 +2,12 @@ import SwiftUI
 
 @main
 struct YouTubeLiveStatusApp: App {
-    @StateObject private var mainViewModel = MainViewModel()
+    @StateObject private var mainViewModel: MainViewModel
     @StateObject private var ndiViewModel: NDIViewModel
     
     init() {
-        let mainVM = MainViewModel()
+        let apiKey = KeychainManager.shared.retrieveAPIKey() ?? ""
+        let mainVM = MainViewModel(apiKey: apiKey)
         _mainViewModel = StateObject(wrappedValue: mainVM)
         _ndiViewModel = StateObject(wrappedValue: NDIViewModel(mainViewModel: mainVM))
     }

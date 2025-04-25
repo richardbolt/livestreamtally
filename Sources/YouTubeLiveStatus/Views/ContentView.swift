@@ -1,16 +1,16 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var viewModel: MainViewModel
+    @EnvironmentObject private var viewModel: MainViewModel
     @EnvironmentObject private var ndiViewModel: NDIViewModel
     private let baseWidth: CGFloat = 1280
     private let baseHeight: CGFloat = 720
-    
+    /*
     init() {
         let apiKey = KeychainManager.shared.retrieveAPIKey() ?? ""
         _viewModel = StateObject(wrappedValue: MainViewModel(apiKey: apiKey))
     }
-    
+    */
     private func startMonitoring() {
         viewModel.startMonitoring()
     }
