@@ -53,4 +53,24 @@ class KeychainManager {
         let status = SecItemDelete(query as CFDictionary)
         return status == errSecSuccess || status == errSecItemNotFound
     }
+}
+
+enum KeychainError: LocalizedError {
+    case saveFailed(status: OSStatus)
+    case retrieveFailed(status: OSStatus)
+    case deleteFailed(status: OSStatus)
+    case unexpectedData
+    
+    var errorDescription: String? {
+        switch self {
+        case .saveFailed(let status):
+            return "Failed to save API key to Keychain: \(status)"
+        case .retrieveFailed(let status):
+            return "Failed to retrieve API key from Keychain: \(status)"
+        case .deleteFailed(let status):
+            return "Failed to delete API key from Keychain: \(status)"
+        case .unexpectedData:
+            return "Retrieved data was in unexpected format"
+        }
+    }
 } 

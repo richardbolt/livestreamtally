@@ -50,12 +50,68 @@ cp .build/release/YouTubeLiveStatus YouTubeLiveStatus.app/Contents/MacOS/
 # Copy Info.plist
 cp Info.plist YouTubeLiveStatus.app/Contents/
 
-# Copy NDI library
-cp /Library/NDI\ SDK\ for\ Apple/lib/macOS/libndi.dylib YouTubeLiveStatus.app/Contents/Frameworks/
-install_name_tool -change @rpath/libndi.dylib @executable_path/../Frameworks/libndi.dylib YouTubeLiveStatus.app/Contents/MacOS/YouTubeLiveStatus
+# Create NDI framework structure
+mkdir -p YouTubeLiveStatus.app/Contents/Frameworks/NDI.framework/Versions/A/{Resources,Headers}
+
+# Create framework Info.plist (directly in framework root)
+cat > YouTubeLiveStatus.app/Contents/Frameworks/NDI.framework/Versions/A/Resources/Info.plist << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleExecutable</key>
+    <string>NDI</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.newtek.ndi.framework</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>NDI</string>
+    <key>CFBundlePackageType</key>
+    <string>FMWK</string>
+    <key>CFBundleShortVersionString</key>
+    <string>5.5.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>NSPrincipalClass</key>
+    <string></string>
+</dict>
+</plist>
+EOF
+
+# Copy dylib to Versions/A only (not duplicated in root)
+ditto "/Library/NDI SDK for Apple/lib/macOS/libndi.dylib" "YouTubeLiveStatus.app/Contents/Frameworks/NDI.framework/Versions/A/NDI"
+
+# Copy headers to Headers directory
+ditto "/Library/NDI SDK for Apple/include/Processing.NDI.Lib.h" "YouTubeLiveStatus.app/Contents/Frameworks/NDI.framework/Versions/A/Headers/"
+
+# Create correct symlinks (relative to framework root)
+cd YouTubeLiveStatus.app/Contents/Frameworks/NDI.framework
+ln -sfh A Versions/Current
+ln -sfh Versions/Current/NDI NDI
+ln -sfh Versions/Current/Resources Resources
+ln -sfh Versions/Current/Headers Headers
+ln -sfh Versions/Current/Resources/Info.plist Info.plist
+cd ../../../..
+
+# Update install name
+install_name_tool -change @rpath/libndi.dylib @executable_path/../Frameworks/NDI.framework/NDI YouTubeLiveStatus.app/Contents/MacOS/YouTubeLiveStatus
+
+# Sign the NDI framework
+codesign --force --sign - --entitlements YouTubeLiveStatus.entitlements YouTubeLiveStatus.app/Contents/Frameworks/NDI.framework
 
 # Clean up iconset
 rm -rf "$ICONSET"
+
+# Code sign the app with entitlements
+echo "Code signing with entitlements..."
+codesign --force --deep --sign - --entitlements YouTubeLiveStatus.entitlements --identifier com.youtubelivestatus.app YouTubeLiveStatus.app
+
+# Verify code signing
+echo "Verifying code signing..."
+codesign -vv -d YouTubeLiveStatus.app
 
 echo "App bundle created at YouTubeLiveStatus.app"
 echo "Run with: open YouTubeLiveStatus.app" 

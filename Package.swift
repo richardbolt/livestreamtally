@@ -32,7 +32,7 @@ let package = Package(
                 .linkedFramework("AppKit"),
                 .unsafeFlags([
                     "-L/Library/NDI SDK for Apple/lib/macOS",
-                    "-Xlinker", "-rpath", "-Xlinker", "/Library/NDI SDK for Apple/lib/macOS"
+                    "-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"
                 ]),
                 .linkedLibrary("ndi")
             ]
