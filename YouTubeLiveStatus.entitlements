@@ -10,6 +10,9 @@
     <!-- Outgoing network access (for YouTube API requests) -->
     <key>com.apple.security.network.client</key>
     <true/>
+    <!-- Incoming network access (for NDI requests) -->
+    <key>com.apple.security.network.server</key>
+    <true/>
 
     <!-- App Groups (if you’re sharing UserDefaults/Keychain between targets) -->
     <key>com.apple.security.application-groups</key>

@@ -1,7 +1,7 @@
-prefix=@executable_path/../Frameworks
+prefix=/Library/NDI SDK for Apple
 exec_prefix=${prefix}
-libdir=${prefix}
-includedir=${prefix}/NDI.framework/Headers
+libdir=${exec_prefix}/lib/macOS
+includedir=${exec_prefix}/include
 
 Name: ndi
 Description: NDI SDK
