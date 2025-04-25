@@ -1,4 +1,15 @@
 #!/bin/bash
+#
+# build_app.sh
+# YouTubeLiveStatus
+#
+# Created by Richard Bolt
+# Copyright © 2025 Richard Bolt. All rights reserved.
+#
+# This file is part of YouTubeLiveStatus, released under the MIT License.
+# See the LICENSE file for details.
+#
+
 
 # Exit on error
 set -e

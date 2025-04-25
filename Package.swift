@@ -1,4 +1,15 @@
 // swift-tools-version:5.9
+//
+// Package.swift
+// YouTubeLiveStatus
+//
+// Created by Richard Bolt
+// Copyright © 2025 Richard Bolt. All rights reserved.
+//
+// This file is part of YouTubeLiveStatus, released under the MIT License.
+// See the LICENSE file for details.
+//
+
 import PackageDescription
 
 let package = Package(
