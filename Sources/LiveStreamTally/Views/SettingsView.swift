@@ -25,14 +25,14 @@ struct SettingsView: View {
     // Track if we're currently processing
     @State private var isProcessing = false
     
-    init(mainViewModel: MainViewModel? = nil) {
-        // Use the provided mainViewModel or get it from the environment
-        let model = mainViewModel ?? MainViewModel()
-        self._viewModel = StateObject(wrappedValue: SettingsViewModel(mainViewModel: model))
-        
+    init() {
         // Initialize form fields from PreferencesManager
         _channelId = State(initialValue: PreferencesManager.shared.getChannelId())
         _apiKey = State(initialValue: PreferencesManager.shared.getApiKey() ?? "")
+        
+        // Create the settings view model without creating a new MainViewModel
+        // The MainViewModel will be provided by the environment
+        _viewModel = StateObject(wrappedValue: SettingsViewModel())
     }
     
     var body: some View {
@@ -148,7 +148,7 @@ struct SettingsView: View {
                         )
                         
                         // Always start monitoring to refresh the state
-                        mainViewModel.startMonitoring()
+                        await mainViewModel.startMonitoring()
                         
                         isProcessing = false
                         dismiss()

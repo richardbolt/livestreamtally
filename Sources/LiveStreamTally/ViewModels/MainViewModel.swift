@@ -16,6 +16,9 @@ import os
 
 @MainActor
 final class MainViewModel: ObservableObject {
+    // Static cached YouTubeService to prevent recreating it
+    private static var cachedYouTubeService: YouTubeService?
+    
     @Published var isLive = false {
         didSet {
             if oldValue != isLive {
@@ -42,16 +45,24 @@ final class MainViewModel: ObservableObject {
     
     private var youtubeService: YouTubeService?
     private var timer: Timer?
-    private var timeTimer: Timer?
+    private var timePublisher: AnyCancellable?
     
     // Timer intervals
     private let liveCheckInterval: TimeInterval = 30.0
     private let notLiveCheckInterval: TimeInterval = 60.0
     
+    // Shared date formatter for time updates
+    private let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm:ss a" // 12-hour format with AM/PM
+        return formatter
+    }()
+    
     // Add cancellables for Combine subscriptions
     private var cancellables = Set<AnyCancellable>()
     
     init(apiKey: String? = nil) {
+        Logger.debug("MainViewModel.init() called", category: .main)
         // Initialize with current values from PreferencesManager
         self.channelId = PreferencesManager.shared.getChannelId()
         self.cachedChannelId = PreferencesManager.shared.cachedChannelId
@@ -62,7 +73,13 @@ final class MainViewModel: ObservableObject {
         
         if let keyToUse = keyToUse, !keyToUse.isEmpty {
             do {
-                youtubeService = try YouTubeService(apiKey: keyToUse)
+                // Use cached service if it exists, otherwise create a new one
+                if MainViewModel.cachedYouTubeService == nil {
+                    MainViewModel.cachedYouTubeService = try YouTubeService(apiKey: keyToUse)
+                }
+                
+                // Use the cached service
+                youtubeService = MainViewModel.cachedYouTubeService
                 self.error = nil
             } catch let serviceError {
                 self.error = "Failed to initialize YouTube service: \(serviceError.localizedDescription)"
@@ -108,6 +125,8 @@ final class MainViewModel: ObservableObject {
     }
     
     private func registerForNotifications() {
+        Logger.debug("REGISTERING NOTIFICATIONS in MainViewModel", category: .main)
+        
         // Register for API key changes
         NotificationCenter.default.addObserver(
             self,
@@ -129,7 +148,9 @@ final class MainViewModel: ObservableObject {
         // Reinitialize YouTubeService with new API key
         if let apiKey = PreferencesManager.shared.getApiKey() {
             do {
-                youtubeService = try YouTubeService(apiKey: apiKey)
+                // Create a new service and update the cache
+                MainViewModel.cachedYouTubeService = try YouTubeService(apiKey: apiKey)
+                youtubeService = MainViewModel.cachedYouTubeService
                 error = nil
             } catch let serviceError {
                 error = "Failed to initialize YouTube service: \(serviceError.localizedDescription)"
@@ -138,13 +159,20 @@ final class MainViewModel: ObservableObject {
     }
     
     @objc private func handleChannelChanged() {
+        // Create a Task to handle the async work
+        Task { @MainActor [weak self] in
+            await self?.handleChannelChangedAsync()
+        }
+    }
+    
+    private func handleChannelChangedAsync() async {
         // Clear YouTube service cache when channel changes
         youtubeService?.clearCache()
         
         // Restart monitoring if active
         if timer != nil {
-            stopMonitoring()
-            startMonitoring()
+            await stopMonitoring()
+            await startMonitoring()
         }
     }
     
@@ -166,7 +194,7 @@ final class MainViewModel: ObservableObject {
         }
     }
     
-    func startMonitoring() {
+    func startMonitoring() async {
         Logger.debug("Monitoring timer started", category: .main)
         guard youtubeService != nil else {
             error = "YouTube service not initialized. Please check your API key."
@@ -179,7 +207,7 @@ final class MainViewModel: ObservableObject {
         }
         
         // Stop any existing timer
-        stopMonitoring()
+        await stopMonitoring()
         
         isLoading = true
         
@@ -200,7 +228,7 @@ final class MainViewModel: ObservableObject {
         startTimeUpdates()
     }
     
-    func stopMonitoring() {
+    func stopMonitoring() async {
         timer?.invalidate()
         timer = nil
         stopTimeUpdates()
@@ -208,26 +236,29 @@ final class MainViewModel: ObservableObject {
     }
     
     private func startTimeUpdates() {
+        Logger.debug("TimeUpdates publisher started", category: .main)
         // Format initial time
-        updateCurrentTime()
+        currentTime = timeFormatter.string(from: Date())
         
-        // Set up timer to update every second
-        timeTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.updateCurrentTime()
+        // Use a publisher that doesn't trigger as many UI updates
+        timePublisher = Timer.publish(every: 1.0, on: .main, in: .default)
+            .autoconnect()
+            // Throttle updates to reduce frequency
+            .throttle(for: .seconds(1), scheduler: RunLoop.main, latest: true)
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+                // Only update if the formatted time is actually different
+                let newTime = self.timeFormatter.string(from: Date())
+                if self.currentTime != newTime {
+                    self.currentTime = newTime
+                }
             }
-        }
-    }
-    
-    private func updateCurrentTime() {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm:ss a" // 12-hour format with AM/PM
-        currentTime = formatter.string(from: Date())
     }
     
     private func stopTimeUpdates() {
-        timeTimer?.invalidate()
-        timeTimer = nil
+        Logger.debug("TimeUpdates publisher stopped", category: .main)
+        timePublisher?.cancel()
+        timePublisher = nil
     }
     
     private func checkLiveStatus() async {

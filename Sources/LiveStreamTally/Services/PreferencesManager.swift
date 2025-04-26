@@ -114,12 +114,13 @@ class PreferencesManager {
     }
     
     func updateApiKey(_ newValue: String) -> Bool {
-        Logger.debug("Updating API key", category: .app)
+        Logger.debug("updateApiKey called with new value", category: .app)
         
         let success = KeychainManager.shared.saveAPIKey(newValue)
         
         if success {
             // Notify observers if save was successful
+            Logger.debug("About to post apiKeyChanged notification", category: .app)
             postNotification(name: Notifications.apiKeyChanged)
         }
         
@@ -157,6 +158,14 @@ class PreferencesManager {
     }
     
     private func postNotification(name: Notification.Name, userInfo: [AnyHashable: Any]? = nil) {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "HH:mm:ss.SSS"
+        let timestamp = dateFormatter.string(from: Date())
+        
+        if name == Notifications.apiKeyChanged {
+            Logger.debug("POSTING apiKeyChanged notification at \(timestamp)", category: .app)
+        }
+        
         NotificationCenter.default.post(
             name: name,
             object: self,

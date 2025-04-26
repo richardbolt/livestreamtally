@@ -17,12 +17,12 @@ struct ContentView: View {
     private let baseWidth: CGFloat = 1280
     private let baseHeight: CGFloat = 720
    
-    private func startMonitoring() {
-        viewModel.startMonitoring()
+    private func startMonitoring() async {
+        await viewModel.startMonitoring()
     }
     
-    private func stopMonitoring() {
-        viewModel.stopMonitoring()
+    private func stopMonitoring() async {
+        await viewModel.stopMonitoring()
     }
     
     var body: some View {
@@ -55,13 +55,17 @@ struct ContentView: View {
         }
         .aspectRatio(16/9, contentMode: .fit)
         .onAppear {
-            startMonitoring()
+            Task {
+                await startMonitoring()
+            }
             DispatchQueue.main.async {
                 ndiViewModel.startStreaming()
             }
         }
         .onDisappear {
-            stopMonitoring()
+            Task {
+                await stopMonitoring()
+            }
             ndiViewModel.stopStreaming()
         }
     }

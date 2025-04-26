@@ -19,12 +19,9 @@ class SettingsViewModel: ObservableObject {
     @Published var apiKeyError: String?
     @Published var isProcessing = false
     
-    private let mainViewModel: MainViewModel
     private var youtubeService: YouTubeService?
     
-    init(mainViewModel: MainViewModel) {
-        self.mainViewModel = mainViewModel
-        
+    init() {
         // Initialize YouTubeService if API key exists
         if let apiKey = PreferencesManager.shared.getApiKey(), !apiKey.isEmpty {
             do {

@@ -13,14 +13,20 @@ import SwiftUI
 
 @main
 struct LiveStreamTallyApp: App {
+    // Add a shared static instance of MainViewModel to prevent recreation
+    private static let sharedMainViewModel: MainViewModel = {
+        Logger.debug("Creating shared MainViewModel instance", category: .app)
+        let apiKey = KeychainManager.shared.retrieveAPIKey() ?? ""
+        return MainViewModel(apiKey: apiKey)
+    }()
+    
     @StateObject private var mainViewModel: MainViewModel
     @StateObject private var ndiViewModel: NDIViewModel
     
     init() {
-        let apiKey = KeychainManager.shared.retrieveAPIKey() ?? ""
-        let mainVM = MainViewModel(apiKey: apiKey)
-        _mainViewModel = StateObject(wrappedValue: mainVM)
-        _ndiViewModel = StateObject(wrappedValue: NDIViewModel(mainViewModel: mainVM))
+        // Use the shared instance instead of creating a new one each time
+        _mainViewModel = StateObject(wrappedValue: LiveStreamTallyApp.sharedMainViewModel)
+        _ndiViewModel = StateObject(wrappedValue: NDIViewModel(mainViewModel: LiveStreamTallyApp.sharedMainViewModel))
     }
     
     var body: some Scene {
