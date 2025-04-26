@@ -35,7 +35,7 @@ build: build-swift
 	./build_app.sh
 
 # Run the app
-run: build
+run:
 	@echo "Running $(APP_NAME)..."
 	open $(APP_NAME).app
 
@@ -57,6 +57,11 @@ test:
 	@echo "Running tests..."
 	$(SWIFT) test
 
+# Open a log stream
+logs:
+	@echo "Opening a log stream"
+	log stream --predicate 'subsystem == "com.youtubelivestatus.app"' --level debug
+
 # Display help information
 help:
 	@echo "YouTubeLiveStatus Makefile"
@@ -67,10 +72,11 @@ help:
 	@echo "  all        Clean and build the app (default)"
 	@echo "  clean      Remove build artifacts"
 	@echo "  build      Build the app and create app bundle"
-	@echo "  run        Build and run the app"
+	@echo "  run        Run the app"
 	@echo "  sign       Sign the app (use SIGN_IDENTITY env var to specify identity)"
 	@echo "  package    Create a distributable zip package"
 	@echo "  test       Run Swift tests"
+	@echo "  logs       Stream debug+ level logs from the app"
 	@echo "  help       Display this help information"
 	@echo ""
 	@echo "Examples:"

@@ -1,20 +1,21 @@
 # YouTube Live Status
 
-A macOS application that displays your YouTube channel's live streaming status using NDI output. Perfect for streamers who want to monitor their YouTube live status and integrate it with streaming software that supports NDI.
+A macOS application that displays a YouTube channel's live streaming status using NDI output. Perfect for streamers who want to monitor YouTube live status and integrate it with streaming software, like OBS or Wirefcast, that support NDI.
+
+This is a niche app and you'll know if you need it!
 
 ## Features
 
-- Real-time monitoring of YouTube channel live status
+- Real-time monitoring of a YouTube channel live status
 - NDI output for integration with streaming software
 - Dark mode support
-- Configurable refresh interval
 - Native macOS app with modern SwiftUI interface
 
 ## Requirements
 
 - macOS 13.0 or later
 - [NDI Runtime](https://www.ndi.tv/tools/) installed
-- YouTube Data API v3 key
+- [YouTube Data API v3 key](https://developers.google.com/youtube/v3/getting-started)
 
 ## Setup
 
@@ -24,8 +25,8 @@ A macOS application that displays your YouTube channel's live streaming status u
     1. You can use a Channel Handle
 4. Build and run the app:
    ```bash
-   ./build_app.sh
-   open YouTubeLiveStatus.app
+   make
+   make run
    ```
 
 ## Development
@@ -34,15 +35,21 @@ This project uses Swift Package Manager for dependency management. To work on th
 
 1. Clone the repository
 2. Open the project in Xcode or your preferred editor
-3. Run `./build_app.sh` to build the project
-4. Run `OS_ACTIVITY_MODE=debug open YouTubeLiveStatus.app` to run the app in debug mode
+3. Run `make` or `make build` to build the project
+4. Run `OS_ACTIVITY_MODE=debug make run` to run the app in debug mode
 
-To stream application logs:
-
+Available make commands:
 ```bash
-log stream --predicate 'subsystem == "com.youtubelivestatus.app"' --level debug
+make          # Clean and build the app
+make clean    # Remove build artifacts
+make build    # Build the app and create app bundle
+make run      # Run the app
+make sign     # Sign the app (use SIGN_IDENTITY env var to specify identity)
+make package  # Create a distributable zip package
+make test     # Run Swift tests
+make logs     # Stream debug+ level logs from the app
+make help     # Display help information
 ```
-
 
 ## License
 
