@@ -137,15 +137,18 @@ final class MainViewModel: ObservableObject {
     private func checkLiveStatus() async {
         guard let youtubeService = youtubeService else { return }
         
+        // Create a local copy of the service to avoid isolation issues
+        let service = youtubeService
+        
         do {
             // If we don't have a cached channel ID or playlist ID, resolve it
             if cachedChannelId.isEmpty || uploadPlaylistId.isEmpty {
-                let (resolvedChannelId, resolvedPlaylistId) = try await youtubeService.resolveChannelIdentifier(channelId)
+                let (resolvedChannelId, resolvedPlaylistId) = try await service.resolveChannelIdentifier(channelId)
                 cachedChannelId = resolvedChannelId
                 uploadPlaylistId = resolvedPlaylistId
             }
             
-            let status = try await youtubeService.checkLiveStatus(channelId: cachedChannelId, uploadPlaylistId: uploadPlaylistId)
+            let status = try await service.checkLiveStatus(channelId: cachedChannelId, uploadPlaylistId: uploadPlaylistId)
             
             isLive = status.isLive
             viewerCount = status.viewerCount

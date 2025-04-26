@@ -27,6 +27,7 @@ class NDIViewModel: ObservableObject {
         self.mainViewModel = mainViewModel
     }
     
+    @MainActor
     func startStreaming() {
         guard !isStreaming else { return }
         
@@ -44,6 +45,7 @@ class NDIViewModel: ObservableObject {
         }
     }
     
+    @MainActor
     func stopStreaming() {
         guard isStreaming else { return }
         
@@ -67,7 +69,11 @@ class NDIViewModel: ObservableObject {
     }
     
     deinit {
+        // Capture a reference to the broadcaster outside of the task
+        // to avoid potential memory issues
         let broadcaster = self.broadcaster
+        
+        // Use Task to properly clean up resources on the MainActor
         Task { @MainActor [weak self] in
             self?.stopStreaming()
             broadcaster.stop()
