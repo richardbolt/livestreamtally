@@ -22,6 +22,9 @@ echo "Building YouTube Live Status app..."
 # Clean up any existing app bundle
 rm -rf YouTubeLiveStatus.app
 
+# Create app bundle structure
+mkdir -p YouTubeLiveStatus.app/Contents/{MacOS,Resources,Frameworks}
+
 # Create iconset directory
 ICONSET="YouTubeLiveStatus.app/Contents/Resources/AppIcon.iconset"
 mkdir -p "$ICONSET"
@@ -50,13 +53,6 @@ ls -la "$ICONSET"
 # Convert iconset to icns
 echo "Converting iconset to icns..."
 iconutil -c icns -o "YouTubeLiveStatus.app/Contents/Resources/AppIcon.icns" "$ICONSET"
-
-# Build app in release mode
-echo "Building app in release mode..."
-swift build -c release
-
-# Create app bundle structure
-mkdir -p YouTubeLiveStatus.app/Contents/{MacOS,Resources,Frameworks}
 
 # Copy executable
 cp .build/release/YouTubeLiveStatus YouTubeLiveStatus.app/Contents/MacOS/
