@@ -1,6 +1,8 @@
 # Live Stream Tally
 
-A macOS application that displays a YouTube channel's live streaming status using NDI output. Perfect for streamers who want to monitor YouTube live status and integrate it with streaming software, like OBS or Wirefcast, that support NDI.
+NDI-ready on-air status for any YouTube live streaming channel. Live Stream Tally connects to the YouTube Data API to check a YouTube channel’s live status and emits an NDI tally signal.
+
+This is a niche macOS application in that there is limited use for displaying a YouTube channel's live streaming status, or "tally", using NDI output. However, this is perfect for live streamers who want to monitor channel YouTube live status and integrate it with streaming software, like OBS or Wirefcast, that support NDI. It's particularly useful for operators using a Multi View.
 
 This is a niche app and you'll know if you need it!
 
@@ -34,7 +36,7 @@ This is a niche app and you'll know if you need it!
 This project uses Swift Package Manager for dependency management. To work on the project:
 
 1. Clone the repository
-2. Open the project in Xcode or your preferred editor
+2. Open the project in Xcode or your preferred editor (like Cursor in which this app was built!)
 3. Run `make` or `make build` to build the project
 4. Run `OS_ACTIVITY_MODE=debug make run` to run the app in debug mode
 
