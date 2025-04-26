@@ -55,6 +55,7 @@ class NDIViewModel: ObservableObject {
         isStreaming = false
     }
     
+    @MainActor
     func updateTally() {
         guard isStreaming else { return }
         

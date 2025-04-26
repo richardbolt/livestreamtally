@@ -85,6 +85,7 @@ struct YouTubeLiveStatusApp: App {
 }
 
 // Window delegate to handle window closing
+@MainActor
 class WindowDelegate: NSObject, NSWindowDelegate {
     static let shared = WindowDelegate()
     
