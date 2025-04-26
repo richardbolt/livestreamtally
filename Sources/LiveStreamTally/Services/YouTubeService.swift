@@ -200,6 +200,12 @@ class YouTubeService {
         
         return .networkError
     }
+    
+    // Add this new method to clear cache when channel changes
+    func clearCache() {
+        Logger.debug("Clearing YouTubeService cache (currentLiveVideoId)", category: .youtube)
+        currentLiveVideoId = nil
+    }
 }
 
 // MARK: - Response Models

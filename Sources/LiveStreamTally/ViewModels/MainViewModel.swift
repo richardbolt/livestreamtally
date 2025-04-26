@@ -11,6 +11,7 @@
 
 import Foundation
 import SwiftUI
+import Combine
 import os
 
 @MainActor
@@ -29,9 +30,15 @@ final class MainViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var currentTime: String = ""
     
-    @AppStorage("youtube_channel_id") private var channelId = ""
-    @AppStorage("youtube_channel_id_cached") private var cachedChannelId = ""
-    @AppStorage("youtube_upload_playlist_id") private var uploadPlaylistId = ""
+    // Remove @AppStorage properties
+    // @AppStorage("youtube_channel_id") private var channelId = ""
+    // @AppStorage("youtube_channel_id_cached") private var cachedChannelId = ""
+    // @AppStorage("youtube_upload_playlist_id") private var uploadPlaylistId = ""
+    
+    // Add properties that will be updated from PreferencesManager
+    private var channelId: String = ""
+    private var cachedChannelId: String = ""
+    private var uploadPlaylistId: String = ""
     
     private var youtubeService: YouTubeService?
     private var timer: Timer?
@@ -41,19 +48,108 @@ final class MainViewModel: ObservableObject {
     private let liveCheckInterval: TimeInterval = 30.0
     private let notLiveCheckInterval: TimeInterval = 60.0
     
+    // Add cancellables for Combine subscriptions
+    private var cancellables = Set<AnyCancellable>()
+    
     init(apiKey: String? = nil) {
-        if let apiKey = apiKey, !apiKey.isEmpty {
+        // Initialize with current values from PreferencesManager
+        self.channelId = PreferencesManager.shared.getChannelId()
+        self.cachedChannelId = PreferencesManager.shared.cachedChannelId
+        self.uploadPlaylistId = PreferencesManager.shared.uploadPlaylistId
+        
+        // Initialize with provided API key or from PreferencesManager
+        let keyToUse = apiKey ?? PreferencesManager.shared.getApiKey()
+        
+        if let keyToUse = keyToUse, !keyToUse.isEmpty {
             do {
-                youtubeService = try YouTubeService(apiKey: apiKey)
+                youtubeService = try YouTubeService(apiKey: keyToUse)
                 self.error = nil
             } catch let serviceError {
                 self.error = "Failed to initialize YouTube service: \(serviceError.localizedDescription)"
             }
         }
+        
+        // Setup subscriptions to PreferencesManager publishers
+        setupPreferenceSubscriptions()
+        
+        // Register for notifications
+        registerForNotifications()
+    }
+    
+    deinit {
+        // Unregister notifications
+        NotificationCenter.default.removeObserver(self)
+    }
+    
+    private func setupPreferenceSubscriptions() {
+        // Subscribe to channelId changes
+        PreferencesManager.shared.$channelId
+            .receive(on: RunLoop.main)
+            .sink { [weak self] newValue in
+                self?.channelId = newValue
+            }
+            .store(in: &cancellables)
+        
+        // Subscribe to cachedChannelId changes
+        PreferencesManager.shared.$cachedChannelId
+            .receive(on: RunLoop.main)
+            .sink { [weak self] newValue in
+                self?.cachedChannelId = newValue
+            }
+            .store(in: &cancellables)
+        
+        // Subscribe to uploadPlaylistId changes
+        PreferencesManager.shared.$uploadPlaylistId
+            .receive(on: RunLoop.main)
+            .sink { [weak self] newValue in
+                self?.uploadPlaylistId = newValue
+            }
+            .store(in: &cancellables)
+    }
+    
+    private func registerForNotifications() {
+        // Register for API key changes
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleApiKeyChanged),
+            name: PreferencesManager.Notifications.apiKeyChanged,
+            object: nil
+        )
+        
+        // Register for channel ID changes
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleChannelChanged),
+            name: PreferencesManager.Notifications.channelChanged,
+            object: nil
+        )
+    }
+    
+    @objc private func handleApiKeyChanged() {
+        // Reinitialize YouTubeService with new API key
+        if let apiKey = PreferencesManager.shared.getApiKey() {
+            do {
+                youtubeService = try YouTubeService(apiKey: apiKey)
+                error = nil
+            } catch let serviceError {
+                error = "Failed to initialize YouTube service: \(serviceError.localizedDescription)"
+            }
+        }
+    }
+    
+    @objc private func handleChannelChanged() {
+        // Clear YouTube service cache when channel changes
+        youtubeService?.clearCache()
+        
+        // Restart monitoring if active
+        if timer != nil {
+            stopMonitoring()
+            startMonitoring()
+        }
     }
     
     func getAPIKey() -> String? {
-        return KeychainManager.shared.retrieveAPIKey()
+        return PreferencesManager.shared.getApiKey()
     }
     
     private func updateTimerInterval() {
@@ -141,20 +237,51 @@ final class MainViewModel: ObservableObject {
         let service = youtubeService
         
         do {
+            // Get the latest values from preferences
+            let currentChannelId = channelId
+            let currentCachedChannelId = cachedChannelId
+            let currentUploadPlaylistId = uploadPlaylistId
+            
             // If we don't have a cached channel ID or playlist ID, resolve it
-            if cachedChannelId.isEmpty || uploadPlaylistId.isEmpty {
-                let (resolvedChannelId, resolvedPlaylistId) = try await service.resolveChannelIdentifier(channelId)
-                cachedChannelId = resolvedChannelId
-                uploadPlaylistId = resolvedPlaylistId
+            if currentCachedChannelId.isEmpty || currentUploadPlaylistId.isEmpty {
+                // Clear any cached video data when resolving a new channel
+                service.clearCache()
+                
+                // Resolve the channel identifier
+                let (resolvedChannelId, resolvedPlaylistId) = try await service.resolveChannelIdentifier(currentChannelId)
+                
+                // Update resolved info in PreferencesManager
+                PreferencesManager.shared.setResolvedChannelInfo(
+                    channelId: resolvedChannelId,
+                    playlistId: resolvedPlaylistId
+                )
+                
+                // Use the newly resolved values for this check
+                let status = try await service.checkLiveStatus(
+                    channelId: resolvedChannelId,
+                    uploadPlaylistId: resolvedPlaylistId
+                )
+                
+                // Update UI state
+                isLive = status.isLive
+                viewerCount = status.viewerCount
+                title = status.title
+                error = nil
+            } else {
+                // Use existing cached values
+                let status = try await service.checkLiveStatus(
+                    channelId: currentCachedChannelId,
+                    uploadPlaylistId: currentUploadPlaylistId
+                )
+                
+                // Update UI state
+                isLive = status.isLive
+                viewerCount = status.viewerCount
+                title = status.title
+                error = nil
             }
             
-            let status = try await service.checkLiveStatus(channelId: cachedChannelId, uploadPlaylistId: uploadPlaylistId)
-            
-            isLive = status.isLive
-            viewerCount = status.viewerCount
-            title = status.title
-            Logger.debug("Status updated - isLive: \(isLive), viewers: \(viewerCount), title: \(title), videoId: \(status.videoId)", category: .main)
-            error = nil
+            Logger.debug("Status updated - isLive: \(isLive), viewers: \(viewerCount), title: \(title)", category: .main)
             
         } catch let serviceError {
             if case YouTubeError.quotaExceeded = serviceError {
@@ -167,23 +294,17 @@ final class MainViewModel: ObservableObject {
     }
     
     func updateApiKey(_ newApiKey: String) {
-        if KeychainManager.shared.saveAPIKey(newApiKey) {
-            do {
-                youtubeService = try YouTubeService(apiKey: newApiKey)
-                error = nil
-            } catch let serviceError {
-                error = "Failed to initialize YouTube service: \(serviceError.localizedDescription)"
-            }
+        if PreferencesManager.shared.updateApiKey(newApiKey) {
+            // The notification handler will reinitialize the service
+            error = nil
         } else {
             error = "Failed to save API key to Keychain"
         }
     }
     
     func updateChannelId(_ newChannelId: String) {
-        // Only update the user-entered channel ID, don't touch the cached one
-        channelId = newChannelId
-        // Clear the cached values when the channel ID changes
-        cachedChannelId = ""
-        uploadPlaylistId = ""
+        // Use PreferencesManager to update channel ID
+        // This will trigger notifications that we observe
+        PreferencesManager.shared.updateChannelId(newChannelId)
     }
 } 

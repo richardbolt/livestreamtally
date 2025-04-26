@@ -16,6 +16,7 @@ enum LogCategory: String {
     case main = "MainViewModel"
     case youtube = "YouTubeService"
     case app = "Application"
+    case settings = "Settings"
 }
 
 /// A centralized logging utility for the application

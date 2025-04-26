@@ -12,43 +12,28 @@
 import SwiftUI
 import os
 
-@MainActor
-class SettingsViewModel: ObservableObject {
-    private var youtubeService: YouTubeService?
-    
-    init() {
-        if let apiKey = UserDefaults.standard.string(forKey: "youtube_api_key") {
-            youtubeService = try? YouTubeService(apiKey: apiKey)
-        }
-    }
-    
-    func resolveAndCacheChannelId(_ channelId: String) async {
-        guard let service = youtubeService else { return }
-        
-        do {
-            let (resolvedId, uploadPlaylistId) = try await service.resolveChannelIdentifier(channelId)
-            UserDefaults.standard.set(resolvedId, forKey: "youtube_channel_id_cached")
-            UserDefaults.standard.set(uploadPlaylistId, forKey: "youtube_upload_playlist_id")
-            Logger.debug("Cached channel ID and playlist ID", category: .main)
-        } catch {
-            Logger.error("Failed to resolve channel ID: \(error.localizedDescription)", category: .main)
-        }
-    }
-}
-
 struct SettingsView: View {
-    @AppStorage("youtube_channel_id") private var channelId = ""
-    @AppStorage("youtube_channel_id_cached") private var cachedChannelId = ""
-    @AppStorage("youtube_upload_playlist_id") private var uploadPlaylistId = ""
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
-    @StateObject private var viewModel = SettingsViewModel()
+    @StateObject private var viewModel: SettingsViewModel
     @EnvironmentObject private var mainViewModel: MainViewModel
     
-    // Store initial values to detect changes
-    @State private var apiKey = ""
-    private let initialApiKey = KeychainManager.shared.retrieveAPIKey() ?? ""
-    private let initialChannelId = UserDefaults.standard.string(forKey: "youtube_channel_id") ?? ""
+    // Use state for the form inputs
+    @State private var channelId: String
+    @State private var apiKey: String
+    
+    // Track if we're currently processing
+    @State private var isProcessing = false
+    
+    init(mainViewModel: MainViewModel? = nil) {
+        // Use the provided mainViewModel or get it from the environment
+        let model = mainViewModel ?? MainViewModel()
+        self._viewModel = StateObject(wrappedValue: SettingsViewModel(mainViewModel: model))
+        
+        // Initialize form fields from PreferencesManager
+        _channelId = State(initialValue: PreferencesManager.shared.getChannelId())
+        _apiKey = State(initialValue: PreferencesManager.shared.getApiKey() ?? "")
+    }
     
     var body: some View {
         VStack(spacing: 0) {
@@ -85,6 +70,13 @@ struct SettingsView: View {
                                 6. Copy the key and paste it here
                                 """)
                             
+                            if let error = viewModel.apiKeyError {
+                                Text(error)
+                                    .font(.caption)
+                                    .foregroundColor(.red)
+                                    .padding(.top, 4)
+                            }
+                            
                             Link("How to get a YouTube API key", destination: URL(string: "https://developers.google.com/youtube/v3/getting-started")!)
                                 .font(.caption)
                                 .padding(.top, 4)
@@ -112,6 +104,13 @@ struct SettingsView: View {
                                 .cornerRadius(6)
                                 .help("Your YouTube channel ID from your channel's advanced settings page")
                             
+                            if let error = viewModel.channelError {
+                                Text(error)
+                                    .font(.caption)
+                                    .foregroundColor(.red)
+                                    .padding(.top, 4)
+                            }
+                            
                             Link("How to find your YouTube Channel ID", destination: URL(string: "https://support.google.com/youtube/answer/3250431")!)
                                 .font(.caption)
                                 .padding(.top, 4)
@@ -132,41 +131,39 @@ struct SettingsView: View {
             // Bottom button area
             HStack {
                 Spacer()
+                
+                if isProcessing || viewModel.isProcessing {
+                    ProgressView()
+                        .padding(.trailing, 8)
+                }
+                
                 Button("Done") {
+                    isProcessing = true
+                    
                     Task {
-                        let apiKeyChanged = apiKey != initialApiKey
-                        let channelIdChanged = channelId != initialChannelId
+                        // Save settings using the new ViewModel
+                        await viewModel.saveSettings(
+                            channelId: channelId,
+                            apiKey: apiKey
+                        )
                         
-                        if apiKeyChanged {
-                            mainViewModel.updateApiKey(apiKey)
-                        }
+                        // Always start monitoring to refresh the state
+                        mainViewModel.startMonitoring()
                         
-                        if channelIdChanged {
-                            // Only resolve and cache if the channel ID changed
-                            await viewModel.resolveAndCacheChannelId(channelId)
-                            mainViewModel.updateChannelId(channelId)
-                        }
-                        
-                        // Only restart monitoring if something changed
-                        if apiKeyChanged || channelIdChanged {
-                            mainViewModel.startMonitoring()
-                        }
-                        
+                        isProcessing = false
                         dismiss()
                     }
                 }
                 .keyboardShortcut(.defaultAction)
                 .controlSize(.large)
                 .buttonStyle(.borderedProminent)
+                .disabled(isProcessing || viewModel.isProcessing)
             }
             .padding(16)
             .background(Color(NSColor.controlBackgroundColor))
         }
         .frame(width: 440, height: 340)  // Increased height to accommodate new elements
         .preferredColorScheme(.dark)
-        .onAppear {
-            apiKey = KeychainManager.shared.retrieveAPIKey() ?? ""
-        }
     }
 }
 

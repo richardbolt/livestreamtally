@@ -67,7 +67,7 @@ struct LiveStreamTallyApp: App {
                     NSApplication.shared.orderFrontStandardAboutPanel(
                         options: [
                             NSApplication.AboutPanelOptionKey.credits: NSAttributedString(
-                                string: "NDI® is a registered trademark of Vizrt Group."
+                                string: "NDI® is a registered trademark of Vizrt NDI AB"
                             )
                         ]
                     )

@@ -73,5 +73,5 @@ This application is released under the MIT License. See the [LICENSE](LICENSE) f
 
 ### Third-Party Components
 
-- **NDI®**: This software uses NDI® technology, which is a registered trademark of Vizrt Group. Use of the NDI SDK is subject to the [NDI SDK License Agreement](https://www.ndi.tv/license/).
+- **NDI®**: NDI® is a registered trademark of Vizrt NDI AB. Use of the NDI SDK is subject to the NDI SDK License Agreement. More information is available at [ndi.video](https://ndi.video/).
 - **Google APIs for Swift**: This project uses Google's API client libraries which are licensed under Apache 2.0. 
