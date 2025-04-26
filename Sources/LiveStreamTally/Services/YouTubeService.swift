@@ -79,6 +79,8 @@ class YouTubeService {
     func resolveChannelIdentifier(_ identifier: String) async throws -> (String, String) {
         // If it's already a channel ID, return it
         if identifier.hasPrefix("UC") {
+            Logger.debug("Looking up channel by ID: \(identifier)", category: .youtube)
+            
             let query = GTLRYouTubeQuery_ChannelsList.query(withPart: ["contentDetails"])
             query.identifier = [identifier]
             
@@ -92,29 +94,26 @@ class YouTubeService {
             return (identifier, uploadsPlaylistId)
         }
         
-        // Otherwise, search for the channel
-        let query = GTLRYouTubeQuery_SearchList.query(withPart: ["id"])
-        query.q = identifier
-        query.type = ["channel"]
-        query.maxResults = 1
+        // For all other inputs, use the forHandle parameter (works with or without @ prefix)
+        // Clean up the identifier if it has spaces
+        let handleToUse = identifier.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        let response: GTLRYouTube_SearchListResponse = try await executeQuery(query)
+        // Use the direct channel lookup with forHandle parameter
+        Logger.debug("Looking up channel by handle: \(handleToUse)", category: .youtube)
         
-        guard let channelId = response.items?.first?.identifier?.channelId else {
+        let query = GTLRYouTubeQuery_ChannelsList.query(withPart: ["id", "contentDetails"])
+        query.forHandle = handleToUse
+        
+        let response: GTLRYouTube_ChannelListResponse = try await executeQuery(query)
+        
+        guard let channel = response.items?.first,
+              let channelId = channel.identifier,
+              let contentDetails = channel.contentDetails,
+              let uploadsPlaylistId = contentDetails.relatedPlaylists?.uploads else {
             throw YouTubeError.invalidChannelId
         }
         
-        // Now get the uploads playlist ID
-        let channelQuery = GTLRYouTubeQuery_ChannelsList.query(withPart: ["contentDetails"])
-        channelQuery.identifier = [channelId]
-        
-        let channelResponse: GTLRYouTube_ChannelListResponse = try await executeQuery(channelQuery)
-        
-        guard let channel = channelResponse.items?.first,
-              let uploadsPlaylistId = channel.contentDetails?.relatedPlaylists?.uploads else {
-            throw YouTubeError.invalidChannelId
-        }
-        
+        Logger.debug("Resolved handle \(handleToUse) to channel ID: \(channelId)", category: .youtube)
         return (channelId, uploadsPlaylistId)
     }
     
