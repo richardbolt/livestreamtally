@@ -51,6 +51,17 @@ let package = Package(
         .systemLibrary(
             name: "NDIWrapper",
             path: "Sources/NDIWrapper"
+        ),
+        .testTarget(
+            name: "LiveStreamTallyTests",
+            dependencies: [
+                "LiveStreamTally",
+                .product(name: "Logging", package: "swift-log")
+            ],
+            path: "Tests/LiveStreamTallyTests",
+            exclude: [
+                "TestPlan.md"
+            ]
         )
     ]
 ) 
