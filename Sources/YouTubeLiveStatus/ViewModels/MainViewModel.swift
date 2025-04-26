@@ -27,6 +27,7 @@ final class MainViewModel: ObservableObject {
     @Published var title = ""
     @Published var error: String?
     @Published var isLoading = false
+    @Published var currentTime: String = ""
     
     @AppStorage("youtube_channel_id") private var channelId = ""
     @AppStorage("youtube_channel_id_cached") private var cachedChannelId = ""
@@ -34,6 +35,7 @@ final class MainViewModel: ObservableObject {
     
     private var youtubeService: YouTubeService?
     private var timer: Timer?
+    private var timeTimer: Timer?
     
     // Timer intervals
     private let liveCheckInterval: TimeInterval = 30.0
@@ -97,12 +99,39 @@ final class MainViewModel: ObservableObject {
                 await self?.checkLiveStatus()
             }
         }
+        
+        // Start time updates
+        startTimeUpdates()
     }
     
     func stopMonitoring() {
         timer?.invalidate()
         timer = nil
+        stopTimeUpdates()
         Logger.info("Monitoring stopped", category: .main)
+    }
+    
+    private func startTimeUpdates() {
+        // Format initial time
+        updateCurrentTime()
+        
+        // Set up timer to update every second
+        timeTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.updateCurrentTime()
+            }
+        }
+    }
+    
+    private func updateCurrentTime() {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm:ss a" // 12-hour format with AM/PM
+        currentTime = formatter.string(from: Date())
+    }
+    
+    private func stopTimeUpdates() {
+        timeTimer?.invalidate()
+        timeTimer = nil
     }
     
     private func checkLiveStatus() async {

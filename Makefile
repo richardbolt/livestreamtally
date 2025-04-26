@@ -30,7 +30,7 @@ build-swift:
 	$(SWIFT) build $(SWIFT_BUILD_FLAGS)
 
 # Create the app bundle using the build_app.sh script
-build: build-swift
+build:
 	@echo "Creating app bundle..."
 	./build_app.sh
 

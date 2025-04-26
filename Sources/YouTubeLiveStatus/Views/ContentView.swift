@@ -82,15 +82,23 @@ struct ContentView: View {
                         .font(.system(size: geometry.size.width * 0.15, weight: .bold))
                         .foregroundColor(viewModel.isLive ? .red : .white)
                 }
-                .padding(.vertical, geometry.size.height * 0.05)
+                .padding(.vertical, geometry.size.height * 0.03)
                 
+                // Time display
+                Text(viewModel.currentTime)
+                    .font(.system(size: geometry.size.width * 0.08, weight: .medium, design: .monospaced))
+                    .foregroundColor(viewModel.isLive ? .red : .gray)
+                    .padding(.bottom, geometry.size.height * 0.03)
+                
+                // Livestream Title display
                 Text(viewModel.title)
                     .font(.system(size: geometry.size.width * 0.05))
-                    .foregroundColor(.white)
+                    .foregroundColor(viewModel.isLive ? .white : .gray)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
                 
+                // Livestream current viewer count
                 if viewModel.isLive {
                     Text("Viewers: \(viewModel.viewerCount)")
                         .font(.system(size: geometry.size.width * 0.04))
