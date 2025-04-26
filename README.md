@@ -18,9 +18,24 @@ This is a niche app and you'll know if you need it!
     - Current time
     - Live Stream title
     - Viewer count
-- NDI output for integration with streaming software
+- NDI output at 720p for integration with streaming software or Multi Viewers
 - Dark mode support
 - Native macOS app with modern SwiftUI interface
+
+## Screenshots
+
+![Main Screen - On Air](docs/images/on-air-2.png)
+*Live Stream Tally showing a live stream with viewer count*
+
+![Main Screen - Off Air](docs/images/off-air-2.png)
+*Live Stream Tally showing the off air view*
+
+<img src="docs/images/settings-1.png" width="500px" alt="Settings Screen">
+
+*Configure your YouTube API key and a channel ID/handle*
+
+![Main Screen - On Air](docs/images/on-air-ndi-video-monitor.png)
+*Live Stream Tally showing the On Air view sent via NDI Broadcast to NDI Video Monitor*
 
 ## Requirements
 
