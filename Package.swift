@@ -1,26 +1,26 @@
 // swift-tools-version:6.1
 //
 // Package.swift
-// YouTubeLiveStatus
+// LiveStreamTally
 //
 // Created by Richard Bolt
 // Copyright © 2025 Richard Bolt. All rights reserved.
 //
-// This file is part of YouTubeLiveStatus, released under the MIT License.
+// This file is part of LiveStreamTally, released under the MIT License.
 // See the LICENSE file for details.
 //
 
 import PackageDescription
 
 let package = Package(
-    name: "YouTubeLiveStatus",
+    name: "LiveStreamTally",
     platforms: [
         .macOS(.v13)
     ],
     products: [
         .executable(
-            name: "YouTubeLiveStatus",
-            targets: ["YouTubeLiveStatus"]
+            name: "LiveStreamTally",
+            targets: ["LiveStreamTally"]
         )
     ],
     dependencies: [
@@ -29,13 +29,13 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "YouTubeLiveStatus",
+            name: "LiveStreamTally",
             dependencies: [
                 .product(name: "GoogleAPIClientForREST_YouTube", package: "google-api-objectivec-client-for-rest"),
                 .product(name: "Logging", package: "swift-log"),
                 "NDIWrapper"
             ],
-            path: "Sources/YouTubeLiveStatus",
+            path: "Sources/LiveStreamTally",
             resources: [
                 .process("Resources")
             ],

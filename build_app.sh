@@ -1,12 +1,12 @@
 #!/bin/bash
 #
 # build_app.sh
-# YouTubeLiveStatus
+# LiveStreamTally
 #
 # Created by Richard Bolt
 # Copyright © 2025 Richard Bolt. All rights reserved.
 #
-# This file is part of YouTubeLiveStatus, released under the MIT License.
+# This file is part of LiveStreamTally, released under the MIT License.
 # See the LICENSE file for details.
 #
 
@@ -17,54 +17,54 @@ set -e
 # Optional: Set your Apple Developer ID here
 SIGN_IDENTITY="${SIGN_IDENTITY:-"-"}" # Use "-" for ad-hoc
 
-echo "Building YouTube Live Status app..."
+echo "Building Live Stream Tally app..."
 
 # Clean up any existing app bundle
-rm -rf YouTubeLiveStatus.app
+rm -rf LiveStreamTally.app
 
 # Create app bundle structure
-mkdir -p YouTubeLiveStatus.app/Contents/{MacOS,Resources,Frameworks}
+mkdir -p LiveStreamTally.app/Contents/{MacOS,Resources,Frameworks}
 
 # Create iconset directory
-ICONSET="YouTubeLiveStatus.app/Contents/Resources/AppIcon.iconset"
+ICONSET="LiveStreamTally.app/Contents/Resources/AppIcon.iconset"
 mkdir -p "$ICONSET"
 
 # Copy and rename icons
 echo "Creating iconset..."
-echo "Copying icons from Sources/YouTubeLiveStatus/Resources/AppIcon.appiconset/"
-ls -la Sources/YouTubeLiveStatus/Resources/AppIcon.appiconset/
+echo "Copying icons from Sources/LiveStreamTally/Resources/AppIcon.appiconset/"
+ls -la Sources/LiveStreamTally/Resources/AppIcon.appiconset/
 echo "To $ICONSET"
 ls -la "$ICONSET" || echo "Iconset directory is empty"
 
-cp Sources/YouTubeLiveStatus/Resources/AppIcon.appiconset/icon_16x16.png "$ICONSET/icon_16x16.png"
-cp Sources/YouTubeLiveStatus/Resources/AppIcon.appiconset/icon_16x16@2x.png "$ICONSET/icon_16x16@2x.png"
-cp Sources/YouTubeLiveStatus/Resources/AppIcon.appiconset/icon_32x32.png "$ICONSET/icon_32x32.png"
-cp Sources/YouTubeLiveStatus/Resources/AppIcon.appiconset/icon_32x32@2x.png "$ICONSET/icon_32x32@2x.png"
-cp Sources/YouTubeLiveStatus/Resources/AppIcon.appiconset/icon_128x128.png "$ICONSET/icon_128x128.png"
-cp Sources/YouTubeLiveStatus/Resources/AppIcon.appiconset/icon_128x128@2x.png "$ICONSET/icon_128x128@2x.png"
-cp Sources/YouTubeLiveStatus/Resources/AppIcon.appiconset/icon_256x256.png "$ICONSET/icon_256x256.png"
-cp Sources/YouTubeLiveStatus/Resources/AppIcon.appiconset/icon_256x256@2x.png "$ICONSET/icon_256x256@2x.png"
-cp Sources/YouTubeLiveStatus/Resources/AppIcon.appiconset/icon_512x512.png "$ICONSET/icon_512x512.png"
-cp Sources/YouTubeLiveStatus/Resources/AppIcon.appiconset/icon_512x512@2x.png "$ICONSET/icon_512x512@2x.png"
+cp Sources/LiveStreamTally/Resources/AppIcon.appiconset/icon_16x16.png "$ICONSET/icon_16x16.png"
+cp Sources/LiveStreamTally/Resources/AppIcon.appiconset/icon_16x16@2x.png "$ICONSET/icon_16x16@2x.png"
+cp Sources/LiveStreamTally/Resources/AppIcon.appiconset/icon_32x32.png "$ICONSET/icon_32x32.png"
+cp Sources/LiveStreamTally/Resources/AppIcon.appiconset/icon_32x32@2x.png "$ICONSET/icon_32x32@2x.png"
+cp Sources/LiveStreamTally/Resources/AppIcon.appiconset/icon_128x128.png "$ICONSET/icon_128x128.png"
+cp Sources/LiveStreamTally/Resources/AppIcon.appiconset/icon_128x128@2x.png "$ICONSET/icon_128x128@2x.png"
+cp Sources/LiveStreamTally/Resources/AppIcon.appiconset/icon_256x256.png "$ICONSET/icon_256x256.png"
+cp Sources/LiveStreamTally/Resources/AppIcon.appiconset/icon_256x256@2x.png "$ICONSET/icon_256x256@2x.png"
+cp Sources/LiveStreamTally/Resources/AppIcon.appiconset/icon_512x512.png "$ICONSET/icon_512x512.png"
+cp Sources/LiveStreamTally/Resources/AppIcon.appiconset/icon_512x512@2x.png "$ICONSET/icon_512x512@2x.png"
 
 echo "Iconset contents after copying:"
 ls -la "$ICONSET"
 
 # Convert iconset to icns
 echo "Converting iconset to icns..."
-iconutil -c icns -o "YouTubeLiveStatus.app/Contents/Resources/AppIcon.icns" "$ICONSET"
+iconutil -c icns -o "LiveStreamTally.app/Contents/Resources/AppIcon.icns" "$ICONSET"
 
 # Copy executable
-cp .build/release/YouTubeLiveStatus YouTubeLiveStatus.app/Contents/MacOS/
+cp .build/release/LiveStreamTally LiveStreamTally.app/Contents/MacOS/
 
 # Copy Info.plist
-cp Info.plist YouTubeLiveStatus.app/Contents/
+cp Info.plist LiveStreamTally.app/Contents/
 
 # Create NDI framework structure
-mkdir -p YouTubeLiveStatus.app/Contents/Frameworks/NDI.framework/Versions/A/{Resources,Headers}
+mkdir -p LiveStreamTally.app/Contents/Frameworks/NDI.framework/Versions/A/{Resources,Headers}
 
 # Create framework Info.plist (directly in framework root)
-cat > YouTubeLiveStatus.app/Contents/Frameworks/NDI.framework/Versions/A/Resources/Info.plist << EOF
+cat > LiveStreamTally.app/Contents/Frameworks/NDI.framework/Versions/A/Resources/Info.plist << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -92,13 +92,13 @@ cat > YouTubeLiveStatus.app/Contents/Frameworks/NDI.framework/Versions/A/Resourc
 EOF
 
 # Copy dylib to Versions/A only (not duplicated in root)
-ditto "/Library/NDI SDK for Apple/lib/macOS/libndi.dylib" "YouTubeLiveStatus.app/Contents/Frameworks/NDI.framework/Versions/A/NDI"
+ditto "/Library/NDI SDK for Apple/lib/macOS/libndi.dylib" "LiveStreamTally.app/Contents/Frameworks/NDI.framework/Versions/A/NDI"
 
 # Copy headers to Headers directory
-ditto "/Library/NDI SDK for Apple/include/Processing.NDI.Lib.h" "YouTubeLiveStatus.app/Contents/Frameworks/NDI.framework/Versions/A/Headers/"
+ditto "/Library/NDI SDK for Apple/include/Processing.NDI.Lib.h" "LiveStreamTally.app/Contents/Frameworks/NDI.framework/Versions/A/Headers/"
 
 # Create correct symlinks (relative to framework root)
-cd YouTubeLiveStatus.app/Contents/Frameworks/NDI.framework
+cd LiveStreamTally.app/Contents/Frameworks/NDI.framework
 ln -sfh A Versions/Current
 ln -sfh Versions/Current/NDI NDI
 ln -sfh Versions/Current/Resources Resources
@@ -106,18 +106,18 @@ ln -sfh Versions/Current/Headers Headers
 cd ../../../..
 
 # Update install name
-install_name_tool -change @rpath/libndi.dylib @executable_path/../Frameworks/NDI.framework/NDI YouTubeLiveStatus.app/Contents/MacOS/YouTubeLiveStatus
+install_name_tool -change @rpath/libndi.dylib @executable_path/../Frameworks/NDI.framework/NDI LiveStreamTally.app/Contents/MacOS/LiveStreamTally
 
 # Clean up iconset
 rm -rf "$ICONSET"
 
 # Code sign the app with entitlements
 echo "Code signing with entitlements..."
-codesign --force --deep --options runtime --sign "$SIGN_IDENTITY" --entitlements YouTubeLiveStatus.entitlements --identifier com.youtubelivestatus.app YouTubeLiveStatus.app
+codesign --force --deep --options runtime --sign "$SIGN_IDENTITY" --entitlements LiveStreamTally.entitlements --identifier com.livestreamtally.app LiveStreamTally.app
 
 # Verify code signing
 echo "Verifying code signing..."
-codesign -vv -d YouTubeLiveStatus.app
+codesign -vv -d LiveStreamTally.app
 
-echo "App bundle created at YouTubeLiveStatus.app"
-echo "Run with: open YouTubeLiveStatus.app" 
+echo "App bundle created at LiveStreamTally.app"
+echo "Run with: open LiveStreamTally.app" 

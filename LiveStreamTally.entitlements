@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" 
+   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Standard App Sandbox -->
+    <key>com.apple.security.app-sandbox</key>
+    <true/>
+
+    <!-- Outgoing network access (for YouTube API requests) -->
+    <key>com.apple.security.network.client</key>
+    <true/>
+    <!-- Incoming network access (for NDI requests) -->
+    <key>com.apple.security.network.server</key>
+    <true/>
+
+    <!-- App Groups (if you're sharing UserDefaults/Keychain between targets) -->
+    <key>com.apple.security.application-groups</key>
+    <array>
+        <string>com.livestreamtally.app</string>
+    </array>
+
+    <!-- Keychain sharing: must be "com.apple.security.keychain-access-groups" -->
+    <key>com.apple.security.keychain-access-groups</key>
+    <array>
+        <string>com.livestreamtally.app</string>
+    </array>
+
+    <!-- Allow loading third-party dylibs under Hardened Runtime -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+</dict>
+</plist>

@@ -1,11 +1,11 @@
 //
 //  Logger.swift
-//  YouTubeLiveStatus
+//  LiveStreamTally
 //
 //  Created by Richard Bolt
 //  Copyright © 2025 Richard Bolt. All rights reserved.
 //
-//  This file is part of YouTubeLiveStatus, released under the MIT License.
+//  This file is part of LiveStreamTally, released under the MIT License.
 //  See the LICENSE file for details.
 //
 
@@ -20,7 +20,7 @@ enum LogCategory: String {
 
 /// A centralized logging utility for the application
 enum Logger {
-    private static let subsystem = "com.youtubelivestatus.app"
+    private static let subsystem = "com.livestreamtally.app"
     
     static func logger(for category: LogCategory) -> OSLog {
         return OSLog(subsystem: subsystem, category: category.rawValue)

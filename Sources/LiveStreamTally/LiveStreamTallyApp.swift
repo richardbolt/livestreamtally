@@ -1,18 +1,18 @@
 //
-//  YouTubeLiveStatusApp.swift
-//  YouTubeLiveStatus
+//  LiveStreamTallyApp.swift
+//  LiveStreamTally
 //
 //  Created by Richard Bolt
 //  Copyright © 2025 Richard Bolt. All rights reserved.
 //
-//  This file is part of YouTubeLiveStatus, released under the MIT License.
+//  This file is part of LiveStreamTally, released under the MIT License.
 //  See the LICENSE file for details.
 //
 
 import SwiftUI
 
 @main
-struct YouTubeLiveStatusApp: App {
+struct LiveStreamTallyApp: App {
     @StateObject private var mainViewModel: MainViewModel
     @StateObject private var ndiViewModel: NDIViewModel
     
@@ -32,7 +32,7 @@ struct YouTubeLiveStatusApp: App {
                 .environmentObject(ndiViewModel)
                 .onAppear {
                     // Ensure window is visible and properly sized
-                    if let window = NSApp.windows.first(where: { $0.title == "YouTube Live Status" }) {
+                    if let window = NSApp.windows.first(where: { $0.title == "Live Stream Tally" }) {
                         window.center()
                         window.makeKeyAndOrderFront(nil)
                         
@@ -63,7 +63,7 @@ struct YouTubeLiveStatusApp: App {
         .defaultSize(width: 1280, height: 720)
         .commands {
             CommandGroup(replacing: .appInfo) {
-                Button("About YouTube Live Status") {
+                Button("About Live Stream Tally") {
                     NSApplication.shared.orderFrontStandardAboutPanel(
                         options: [
                             NSApplication.AboutPanelOptionKey.credits: NSAttributedString(

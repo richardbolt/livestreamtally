@@ -1,4 +1,4 @@
-# YouTube Live Status
+# Live Stream Tally
 
 A macOS application that displays a YouTube channel's live streaming status using NDI output. Perfect for streamers who want to monitor YouTube live status and integrate it with streaming software, like OBS or Wirefcast, that support NDI.
 

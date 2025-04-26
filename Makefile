@@ -1,14 +1,14 @@
 # Makefile
-# YouTubeLiveStatus
+# LiveStreamTally
 #
 # Created by Richard Bolt
 # Copyright © 2025 Richard Bolt. All rights reserved.
 #
-# This file is part of YouTubeLiveStatus, released under the MIT License.
+# This file is part of LiveStreamTally, released under the MIT License.
 # See the LICENSE file for details.
 
 # Configuration
-APP_NAME = YouTubeLiveStatus
+APP_NAME = LiveStreamTally
 SWIFT = swift
 SWIFT_BUILD_FLAGS = -c release
 SIGN_IDENTITY ?= "-"  # Use "-" for ad-hoc signing, or set via environment variable
@@ -42,7 +42,7 @@ run:
 # Just sign the app (useful if you only changed the signing identity)
 sign:
 	@echo "Signing app with identity: $(SIGN_IDENTITY)..."
-	codesign --force --deep --options runtime --sign "$(SIGN_IDENTITY)" --entitlements $(APP_NAME).entitlements --identifier com.youtubelivestatus.app $(APP_NAME).app
+	codesign --force --deep --options runtime --sign "$(SIGN_IDENTITY)" --entitlements $(APP_NAME).entitlements --identifier com.livestreamtally.app $(APP_NAME).app
 	codesign -vv -d $(APP_NAME).app
 
 # Create a distributable package
@@ -60,11 +60,11 @@ test:
 # Open a log stream
 logs:
 	@echo "Opening a log stream"
-	log stream --predicate 'subsystem == "com.youtubelivestatus.app"' --level debug
+	log stream --predicate 'subsystem == "com.livestreamtally.app"' --level debug
 
 # Display help information
 help:
-	@echo "YouTubeLiveStatus Makefile"
+	@echo "LiveStreamTally Makefile"
 	@echo ""
 	@echo "Usage: make [target]"
 	@echo ""

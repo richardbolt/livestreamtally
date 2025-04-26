@@ -1,11 +1,11 @@
 //
 //  YouTubeService.swift
-//  YouTubeLiveStatus
+//  LiveStreamTally
 //
 //  Created by Richard Bolt
 //  Copyright © 2025 Richard Bolt. All rights reserved.
 //
-//  This file is part of YouTubeLiveStatus, released under the MIT License.
+//  This file is part of LiveStreamTally, released under the MIT License.
 //  See the LICENSE file for details.
 //
 
@@ -32,7 +32,7 @@ enum YouTubeError: Error {
     case unknownError
 }
 
-// Make YouTubeService Swift 6.1 compatible using @MainActor to ensure isolation
+// Using @MainActor to ensure isolation for Swift 6.1 compatibility
 @MainActor
 class YouTubeService {
     private let service: GTLRYouTubeService

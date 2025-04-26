@@ -1,11 +1,11 @@
 //
 //  KeychainManager.swift
-//  YouTubeLiveStatus
+//  LiveStreamTally
 //
 //  Created by Richard Bolt
 //  Copyright © 2025 Richard Bolt. All rights reserved.
 //
-//  This file is part of YouTubeLiveStatus, released under the MIT License.
+//  This file is part of LiveStreamTally, released under the MIT License.
 //  See the LICENSE file for details.
 //
 
@@ -16,7 +16,7 @@ import Security
 class KeychainManager {
     static let shared = KeychainManager()
     
-    private let service = "com.youtubelivestatus.app"
+    private let service = "com.livestreamtally.app"
     private let account = "youtube_api_key"
     
     func saveAPIKey(_ apiKey: String) -> Bool {
