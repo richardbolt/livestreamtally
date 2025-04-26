@@ -1,5 +1,10 @@
 # Live Stream Tally
 
+[![Swift 6.1](https://img.shields.io/badge/Swift-6.1-orange?style=flat&logo=swift)](https://swift.org)
+[![macOS](https://img.shields.io/badge/macOS-13.0+-lightgrey?style=flat&logo=apple)](https://www.apple.com/macos/)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Built with Cursor](https://img.shields.io/badge/Built%20with-Cursor-blue?style=flat&logo=cursor&logoColor=white)](https://cursor.com/)
+
 NDI-ready on-air status for any YouTube live streaming channel. Live Stream Tally connects to the YouTube Data API to check a YouTube channel's live status and emits an NDI tally signal.
 
 This is a niche macOS application in that there is limited use for displaying a YouTube channel's live streaming status, or "tally", using NDI output. However, this is perfect for live streamers who want to monitor channel YouTube live status and integrate it with streaming software, like OBS or Wirecast, that support NDI. It's particularly useful for operators using a Multi View.
