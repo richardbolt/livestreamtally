@@ -30,7 +30,7 @@ This is a niche app and you'll know if you need it!
 ![Main Screen - Off Air](docs/images/off-air-2.png)
 *Live Stream Tally showing the off air view*
 
-<img src="docs/images/settings-1.png" width="500px" alt="Settings Screen">
+![Settings Screen](docs/images/settings-1.png)
 
 *Configure your YouTube API key and a channel ID/handle*
 
@@ -81,6 +81,24 @@ make test     # Run Swift tests
 make logs     # Stream debug+ level logs from the app
 make help     # Display help information
 ```
+
+## Contributing
+
+Contributions to Live Stream Tally are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) for details on how to submit changes and the process for reviewing pull requests.
+
+By participating in this project, you agree to abide by our [Code of Conduct](CODE_OF_CONDUCT.md).
+
+### Development Setup
+
+1. Fork the repository
+2. Clone your fork: `git clone https://github.com/YOUR_USERNAME/livestreamtally.git`
+3. Create your feature branch: `git checkout -b feature/amazing-feature`
+4. Install dependencies and build: `make`
+5. Make your changes
+6. Test your changes: `make test`
+7. Commit your changes: `git commit -m "Add amazing feature"`
+8. Push to the branch: `git push origin feature/amazing-feature`
+9. Open a Pull Request
 
 ## License
 
