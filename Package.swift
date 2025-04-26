@@ -61,6 +61,14 @@ let package = Package(
             path: "Tests/LiveStreamTallyTests",
             exclude: [
                 "TestPlan.md"
+            ],
+            linkerSettings: [
+                .linkedFramework("AppKit"),
+                .unsafeFlags([
+                    "-L/Library/NDI SDK for Apple/lib/macOS",
+                    "-Xlinker", "-rpath", "-Xlinker", "/Library/NDI SDK for Apple/lib/macOS"
+                ]),
+                .linkedLibrary("ndi")
             ]
         )
     ]
