@@ -21,6 +21,8 @@ struct SettingsView: View {
     // Use state for the form inputs
     @State private var channelId: String
     @State private var apiKey: String
+    @State private var liveCheckInterval: Double
+    @State private var notLiveCheckInterval: Double
     
     // Track if we're currently processing
     @State private var isProcessing = false
@@ -29,6 +31,8 @@ struct SettingsView: View {
         // Initialize form fields from PreferencesManager
         _channelId = State(initialValue: PreferencesManager.shared.getChannelId())
         _apiKey = State(initialValue: PreferencesManager.shared.getApiKey() ?? "")
+        _liveCheckInterval = State(initialValue: PreferencesManager.shared.getLiveCheckInterval())
+        _notLiveCheckInterval = State(initialValue: PreferencesManager.shared.getNotLiveCheckInterval())
         
         // Create the settings view model without creating a new MainViewModel
         // The MainViewModel will be provided by the environment
@@ -124,9 +128,64 @@ struct SettingsView: View {
                         .foregroundStyle(.primary)
                         .padding(.bottom, 8)
                 }
+                
+                Section {
+                    VStack(alignment: .leading, spacing: 24) {
+                        // Live Check Interval
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("When Live (seconds)")
+                                .foregroundStyle(.secondary)
+                            
+                            HStack {
+                                Slider(value: $liveCheckInterval, in: 10...300, step: 5)
+                                    .frame(maxWidth: .infinity)
+                                    .onChange(of: liveCheckInterval) { newValue in
+                                        viewModel.liveCheckInterval = newValue
+                                    }
+                                
+                                Text("\(Int(liveCheckInterval))")
+                                    .frame(width: 40, alignment: .trailing)
+                                    .foregroundStyle(.secondary)
+                            }
+                            
+                            Text("How often to check stream status while live")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        
+                        // Not Live Check Interval
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("When Not Live (seconds)")
+                                .foregroundStyle(.secondary)
+                            
+                            HStack {
+                                Slider(value: $notLiveCheckInterval, in: 10...300, step: 5)
+                                    .frame(maxWidth: .infinity)
+                                    .onChange(of: notLiveCheckInterval) { newValue in
+                                        viewModel.notLiveCheckInterval = newValue
+                                    }
+                                
+                                Text("\(Int(notLiveCheckInterval))")
+                                    .frame(width: 40, alignment: .trailing)
+                                    .foregroundStyle(.secondary)
+                            }
+                            
+                            Text("How often to check if you've gone live")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                } header: {
+                    Text("Polling Intervals")
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.primary)
+                        .padding(.bottom, 8)
+                }
             }
             .formStyle(.grouped)
-            .scrollDisabled(true)
+            .scrollDisabled(false)  // Allow scrolling now that we have more content
             
             // Bottom button area
             HStack {
@@ -162,7 +221,7 @@ struct SettingsView: View {
             .padding(16)
             .background(Color(NSColor.controlBackgroundColor))
         }
-        .frame(width: 440, height: 340)  // Increased height to accommodate new elements
+        .frame(width: 440, height: 480)  // Increased height to accommodate new elements
         .preferredColorScheme(.dark)
     }
 }

@@ -47,10 +47,6 @@ final class MainViewModel: ObservableObject {
     private var timer: Timer?
     private var timePublisher: AnyCancellable?
     
-    // Timer intervals
-    private let liveCheckInterval: TimeInterval = 30.0
-    private let notLiveCheckInterval: TimeInterval = 60.0
-    
     // Shared date formatter for time updates
     private let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -142,6 +138,14 @@ final class MainViewModel: ObservableObject {
             name: PreferencesManager.Notifications.channelChanged,
             object: nil
         )
+        
+        // Register for interval changes
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleIntervalChanged),
+            name: PreferencesManager.Notifications.intervalChanged,
+            object: nil
+        )
     }
     
     @objc private func handleApiKeyChanged() {
@@ -165,7 +169,7 @@ final class MainViewModel: ObservableObject {
         }
     }
     
-    private func handleChannelChangedAsync() async {
+    @objc private func handleChannelChangedAsync() async {
         // Clear YouTube service cache when channel changes
         youtubeService?.clearCache()
         
@@ -174,6 +178,11 @@ final class MainViewModel: ObservableObject {
             await stopMonitoring()
             await startMonitoring()
         }
+    }
+    
+    @objc private func handleIntervalChanged() {
+        // Update timer interval when intervals are changed in preferences
+        updateTimerInterval()
     }
     
     func getAPIKey() -> String? {
@@ -186,8 +195,12 @@ final class MainViewModel: ObservableObject {
         // Stop existing timer
         timer?.invalidate()
         
+        // Get current intervals from preferences
+        let liveInterval = PreferencesManager.shared.getLiveCheckInterval()
+        let notLiveInterval = PreferencesManager.shared.getNotLiveCheckInterval()
+        
         // Create new timer with appropriate interval
-        timer = Timer.scheduledTimer(withTimeInterval: isLive ? liveCheckInterval : notLiveCheckInterval, repeats: true) { [weak self] _ in
+        timer = Timer.scheduledTimer(withTimeInterval: isLive ? liveInterval : notLiveInterval, repeats: true) { [weak self] _ in
             Task { [weak self] in
                 await self?.checkLiveStatus()
             }
@@ -217,8 +230,11 @@ final class MainViewModel: ObservableObject {
             isLoading = false
         }
         
-        // Then start periodic checks with initial interval of 1 minute
-        timer = Timer.scheduledTimer(withTimeInterval: notLiveCheckInterval, repeats: true) { [weak self] _ in
+        // Get initial interval from preferences
+        let initialInterval = PreferencesManager.shared.getNotLiveCheckInterval()
+        
+        // Then start periodic checks with initial interval
+        timer = Timer.scheduledTimer(withTimeInterval: initialInterval, repeats: true) { [weak self] _ in
             Task { [weak self] in
                 await self?.checkLiveStatus()
             }

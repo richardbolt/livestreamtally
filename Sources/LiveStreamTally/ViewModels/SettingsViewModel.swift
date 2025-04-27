@@ -18,10 +18,16 @@ class SettingsViewModel: ObservableObject {
     @Published var channelError: String?
     @Published var apiKeyError: String?
     @Published var isProcessing = false
+    @Published var liveCheckInterval: TimeInterval
+    @Published var notLiveCheckInterval: TimeInterval
     
     private var youtubeService: YouTubeService?
     
     init() {
+        // Initialize with current values from PreferencesManager
+        self.liveCheckInterval = PreferencesManager.shared.getLiveCheckInterval()
+        self.notLiveCheckInterval = PreferencesManager.shared.getNotLiveCheckInterval()
+        
         // Initialize YouTubeService if API key exists
         if let apiKey = PreferencesManager.shared.getApiKey(), !apiKey.isEmpty {
             do {
@@ -32,55 +38,48 @@ class SettingsViewModel: ObservableObject {
         }
     }
     
+    // Add validation methods for the intervals
+    func validateIntervals() -> Bool {
+        // Ensure intervals are within reasonable bounds (10-300 seconds)
+        let isLiveIntervalValid = liveCheckInterval >= 10 && liveCheckInterval <= 300
+        let isNotLiveIntervalValid = notLiveCheckInterval >= 10 && notLiveCheckInterval <= 300
+        
+        return isLiveIntervalValid && isNotLiveIntervalValid
+    }
+    
     func saveSettings(channelId: String, apiKey: String) async {
-        // Clear previous errors
-        channelError = nil
-        apiKeyError = nil
-        
-        // Track processing state
         isProcessing = true
-        defer { isProcessing = false }
         
-        // Get current values for comparison
-        let currentChannelId = PreferencesManager.shared.getChannelId()
+        // Save API key if it has changed
         let currentApiKey = PreferencesManager.shared.getApiKey() ?? ""
-        
-        // Check what changed
-        let channelIdChanged = channelId != currentChannelId
-        let apiKeyChanged = apiKey != currentApiKey
-        
-        // If nothing changed, return early
-        if !channelIdChanged && !apiKeyChanged {
-            return
-        }
-        
-        // Handle API key change first
-        if apiKeyChanged {
-            // Save the new API key
+        if apiKey != currentApiKey {
             if !PreferencesManager.shared.updateApiKey(apiKey) {
-                apiKeyError = "Failed to save API key"
-                return
-            }
-            
-            // Try to initialize a new service with the API key
-            do {
-                youtubeService = try YouTubeService(apiKey: apiKey)
-            } catch {
-                apiKeyError = "Invalid API key: \(error.localizedDescription)"
+                self.apiKeyError = "Failed to save API key"
+                isProcessing = false
                 return
             }
         }
         
-        // Handle channel ID change
-        if channelIdChanged {
-            // Update the channel ID
+        // Save channel ID if it has changed
+        let currentChannelId = PreferencesManager.shared.getChannelId()
+        if channelId != currentChannelId {
             PreferencesManager.shared.updateChannelId(channelId)
+        }
+        
+        // Save intervals if they have changed and are valid
+        if validateIntervals() {
+            let currentLiveInterval = PreferencesManager.shared.getLiveCheckInterval()
+            let currentNotLiveInterval = PreferencesManager.shared.getNotLiveCheckInterval()
             
-            // Try to resolve the channel ID if not empty
-            if !channelId.isEmpty {
-                await resolveChannelId(channelId)
+            if liveCheckInterval != currentLiveInterval || notLiveCheckInterval != currentNotLiveInterval {
+                PreferencesManager.shared.updateIntervals(
+                    liveInterval: liveCheckInterval, 
+                    notLiveInterval: notLiveCheckInterval
+                )
             }
         }
+        
+        isProcessing = false
     }
     
     private func resolveChannelId(_ channelId: String) async {
