@@ -104,7 +104,8 @@ class MockPreferencesManager {
     var cachedChannelId = ""
     var uploadPlaylistId = ""
     var apiKey = ""
-    var refreshInterval: TimeInterval = 60.0
+    var liveRefreshInterval: TimeInterval = 30.0
+    var notLiveRefreshInterval: TimeInterval = 60.0
     var ndiOutputName = "LiveStreamTally"
     var ndiEnabled = false
     
@@ -126,12 +127,18 @@ class MockPreferencesManager {
         NotificationCenter.default.post(name: PreferencesManager.Notifications.apiKeyChanged, object: nil)
     }
     
-    func getRefreshInterval() -> TimeInterval {
-        return refreshInterval
+    func getLiveCheckInterval() -> TimeInterval {
+        return liveRefreshInterval
     }
     
-    func setRefreshInterval(_ value: TimeInterval) {
-        refreshInterval = value
+    func getNotLiveCheckInterval() -> TimeInterval {
+        return notLiveRefreshInterval
+    }
+    
+    func updateIntervals(liveInterval: TimeInterval, notLiveInterval: TimeInterval) {
+        liveRefreshInterval = liveInterval
+        notLiveRefreshInterval = notLiveInterval
+        NotificationCenter.default.post(name: PreferencesManager.Notifications.intervalChanged, object: nil)
     }
     
     func getNDIOutputName() -> String {

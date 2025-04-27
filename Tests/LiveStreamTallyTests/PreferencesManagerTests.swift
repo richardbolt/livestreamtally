@@ -17,7 +17,8 @@ struct PreferencesManagerTestsSuite {
         defaults.removeObject(forKey: "youtube_channel_id")
         defaults.removeObject(forKey: "youtube_channel_id_cached")
         defaults.removeObject(forKey: "youtube_upload_playlist_id")
-        defaults.removeObject(forKey: "refresh_interval")
+        defaults.removeObject(forKey: "youtube_live_check_interval")
+        defaults.removeObject(forKey: "youtube_not_live_check_interval")
         defaults.removeObject(forKey: "ndi_output_name")
         defaults.removeObject(forKey: "ndi_enabled")
     }
@@ -33,8 +34,32 @@ struct PreferencesManagerTestsSuite {
         let preferences = PreferencesManager.shared
         // Test something specific about the preferences
         #expect(preferences.getChannelId().isEmpty, "Channel ID should be empty after clearing preferences")
+        #expect(preferences.getLiveCheckInterval() == 30.0, "Live check interval should default to 30 seconds")
+        #expect(preferences.getNotLiveCheckInterval() == 60.0, "Not live check interval should default to 60 seconds")
         
         // Clean up afterwards
+        clearPreferences()
+    }
+    
+    @Test("Should update and retrieve polling intervals")
+    @MainActor func testPollingIntervals() async {
+        // Clear preferences first
+        clearPreferences()
+        
+        let preferences = PreferencesManager.shared
+        
+        // Test default values
+        #expect(preferences.getLiveCheckInterval() == 30.0, "Live check interval should default to 30 seconds")
+        #expect(preferences.getNotLiveCheckInterval() == 60.0, "Not live check interval should default to 60 seconds")
+        
+        // Update intervals
+        preferences.updateIntervals(liveInterval: 45.0, notLiveInterval: 90.0)
+        
+        // Verify updated values
+        #expect(preferences.getLiveCheckInterval() == 45.0, "Live check interval should be updated to 45 seconds")
+        #expect(preferences.getNotLiveCheckInterval() == 90.0, "Not live check interval should be updated to 90 seconds")
+        
+        // Clean up
         clearPreferences()
     }
     

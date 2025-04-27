@@ -23,6 +23,8 @@ class PreferencesManager {
         static let channelId = "youtube_channel_id"
         static let cachedChannelId = "youtube_channel_id_cached"
         static let uploadPlaylistId = "youtube_upload_playlist_id"
+        static let liveCheckInterval = "youtube_live_check_interval"
+        static let notLiveCheckInterval = "youtube_not_live_check_interval"
     }
     
     // MARK: - Notification Names
@@ -31,6 +33,7 @@ class PreferencesManager {
         static let channelChanged = Notification.Name("com.livestreamtally.preferences.channelChanged")
         static let apiKeyChanged = Notification.Name("com.livestreamtally.preferences.apiKeyChanged")
         static let resolvedChannelChanged = Notification.Name("com.livestreamtally.preferences.resolvedChannelChanged")
+        static let intervalChanged = Notification.Name("com.livestreamtally.preferences.intervalChanged")
     }
     
     // MARK: - Published Properties
@@ -38,6 +41,8 @@ class PreferencesManager {
     @Published private(set) var channelId: String
     @Published private(set) var cachedChannelId: String
     @Published private(set) var uploadPlaylistId: String
+    @Published private(set) var liveCheckInterval: TimeInterval
+    @Published private(set) var notLiveCheckInterval: TimeInterval
     
     // MARK: - Private Properties
     
@@ -50,11 +55,13 @@ class PreferencesManager {
         channelId = defaults.string(forKey: Keys.channelId) ?? ""
         cachedChannelId = defaults.string(forKey: Keys.cachedChannelId) ?? ""
         uploadPlaylistId = defaults.string(forKey: Keys.uploadPlaylistId) ?? ""
+        liveCheckInterval = defaults.double(forKey: Keys.liveCheckInterval).nonZero ?? 30.0
+        notLiveCheckInterval = defaults.double(forKey: Keys.notLiveCheckInterval).nonZero ?? 60.0
         
         // Set up observation for external changes to UserDefaults
         setupObservations()
         
-        Logger.debug("PreferencesManager initialized with channelId: \(channelId), cachedChannelId: \(cachedChannelId), uploadPlaylistId: \(uploadPlaylistId)", category: .app)
+        Logger.debug("PreferencesManager initialized with channelId: \(channelId), cachedChannelId: \(cachedChannelId), uploadPlaylistId: \(uploadPlaylistId), liveCheckInterval: \(liveCheckInterval), notLiveCheckInterval: \(notLiveCheckInterval)", category: .app)
     }
     
     // MARK: - Public Methods
@@ -127,6 +134,30 @@ class PreferencesManager {
         return success
     }
     
+    // Polling interval methods
+    func getLiveCheckInterval() -> TimeInterval {
+        return liveCheckInterval
+    }
+    
+    func getNotLiveCheckInterval() -> TimeInterval {
+        return notLiveCheckInterval
+    }
+    
+    func updateIntervals(liveInterval: TimeInterval, notLiveInterval: TimeInterval) {
+        Logger.debug("Updating intervals - live: \(liveInterval), notLive: \(notLiveInterval)", category: .app)
+        
+        // Update UserDefaults
+        defaults.set(liveInterval, forKey: Keys.liveCheckInterval)
+        defaults.set(notLiveInterval, forKey: Keys.notLiveCheckInterval)
+        
+        // Update published properties
+        liveCheckInterval = liveInterval
+        notLiveCheckInterval = notLiveInterval
+        
+        // Notify observers
+        postNotification(name: Notifications.intervalChanged)
+    }
+    
     // MARK: - Private Methods
     
     private func setupObservations() {
@@ -155,6 +186,16 @@ class PreferencesManager {
         if newUploadPlaylistId != uploadPlaylistId {
             uploadPlaylistId = newUploadPlaylistId
         }
+        
+        let newLiveCheckInterval = defaults.double(forKey: Keys.liveCheckInterval).nonZero ?? 30.0
+        if newLiveCheckInterval != liveCheckInterval {
+            liveCheckInterval = newLiveCheckInterval
+        }
+        
+        let newNotLiveCheckInterval = defaults.double(forKey: Keys.notLiveCheckInterval).nonZero ?? 60.0
+        if newNotLiveCheckInterval != notLiveCheckInterval {
+            notLiveCheckInterval = newNotLiveCheckInterval
+        }
     }
     
     private func postNotification(name: Notification.Name, userInfo: [AnyHashable: Any]? = nil) {
@@ -171,5 +212,14 @@ class PreferencesManager {
             object: self,
             userInfo: userInfo
         )
+    }
+}
+
+// MARK: - Double Extension
+extension Double {
+    /// Returns nil if the value is zero, otherwise returns the value.
+    /// Useful for UserDefaults where 0.0 is returned for missing keys.
+    var nonZero: Double? {
+        return self == 0.0 ? nil : self
     }
 } 
