@@ -164,10 +164,28 @@ struct SettingsView: View {
                         }
                         
                         // Description for both intervals
-                        HStack(spacing: 0) {
-                            Text("Note: Lower values use more YouTube API quota")
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("YouTube API Quota Information:")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                                .fontWeight(.medium)
+                            
+                            Text("• Each check when live uses 1 quota unit")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            
+                            Text("• Each check when not live uses 2 quota units")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            
+                            Text("• Default quota limit is 10,000 units per day")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            
+                            Text("Lower values mean more frequent checks but higher quota usage.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .padding(.top, 2)
                         }
                     }
                     .padding(.vertical, 8)
@@ -216,7 +234,7 @@ struct SettingsView: View {
             .padding(16)
             .background(Color(NSColor.controlBackgroundColor))
         }
-        .frame(width: 400, height: 580)
+        .frame(width: 400, height: 650)
         .preferredColorScheme(.dark)
     }
 }
