@@ -1,28 +1,16 @@
 //
-//  PreferencesManagerTests.swift
+//  PreferencesManagerTestsSwift.swift
 //  LiveStreamTallyTests
 //
-//  Created as a test scaffolding
+//  Created as a Swift Testing version of PreferencesManagerTests
 //
 
-import XCTest
+import Testing
+import Foundation
 @testable import LiveStreamTally
 
-// Note: Testing with Swift 6.1's actor isolation is challenging in XCTest.
-// Individual test methods are marked with @MainActor rather than marking the entire class
-// to avoid issues with XCTestCase's non-Sendable nature.
-final class PreferencesManagerTests: XCTestCase {
-    
-    override func setUp() {
-        super.setUp()
-        // Note: We can't directly interact with @MainActor-isolated code in setUp/tearDown
-        // Individual tests will handle their own setup/cleanup
-    }
-    
-    override func tearDown() {
-        // Note: We can't directly interact with @MainActor-isolated code in setUp/tearDown
-        super.tearDown()
-    }
+@Suite("Preferences Manager Tests")
+struct PreferencesManagerTestsSuite {
     
     private func clearPreferences() {
         let defaults = UserDefaults.standard
@@ -36,14 +24,15 @@ final class PreferencesManagerTests: XCTestCase {
     
     // This test demonstrates how a test would work with the real PreferencesManager
     // In a full implementation, you'd test the actual preference storage methods
-    @MainActor
-    func testPreferenceAccessors() async {
+    @Test("Should provide access to preferences")
+    @MainActor func testPreferenceAccessors() async {
         // Clear preferences first
         clearPreferences()
         
         // Verify that PreferencesManager is accessible from tests
         let preferences = PreferencesManager.shared
-        XCTAssertNotNil(preferences)
+        // Test something specific about the preferences
+        #expect(preferences.getChannelId().isEmpty, "Channel ID should be empty after clearing preferences")
         
         // Clean up afterwards
         clearPreferences()
@@ -61,20 +50,28 @@ final class PreferencesManagerTests: XCTestCase {
     
     // MARK: - Tests with Mock PreferencesManager
     
+    @Test("Should post notifications correctly")
     func testNotificationsArePosted() async throws {
-        // This test doesn't interact directly with MainActor-isolated code
-        // Setup expectation for channel changed notification
-        let expectation = XCTNSNotificationExpectation(
-            name: PreferencesManager.Notifications.channelChanged
-        )
-        
-        // Post the notification manually for testing
-        NotificationCenter.default.post(
-            name: PreferencesManager.Notifications.channelChanged,
-            object: nil
-        )
-        
-        // Wait for the notification
-        await fulfillment(of: [expectation], timeout: 1.0)
+        // Swift Testing approach to testing notifications
+        await confirmation { notificationReceived in
+            // Set up notification observer
+            let notificationName = PreferencesManager.Notifications.channelChanged
+            let observer = NotificationCenter.default.addObserver(
+                forName: notificationName,
+                object: nil as Any?,
+                queue: nil as OperationQueue?
+            ) { _ in
+                notificationReceived()
+            }
+            
+            // Post the notification manually for testing
+            NotificationCenter.default.post(
+                name: notificationName,
+                object: nil
+            )
+            
+            // Clean up observer
+            NotificationCenter.default.removeObserver(observer)
+        }
     }
 } 

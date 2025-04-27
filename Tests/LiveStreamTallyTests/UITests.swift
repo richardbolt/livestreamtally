@@ -1,24 +1,23 @@
 //
-//  UITests.swift
+//  UITestsSwift.swift
 //  LiveStreamTallyTests
 //
-//  Created as a test scaffolding
+//  Created as a Swift Testing version of UITests
 //
 
-import XCTest
+import Testing
 import SwiftUI
+import Foundation
 @testable import LiveStreamTally
 
-// Note: Testing with Swift 6.1's actor isolation is challenging in XCTest.
-// Individual test methods are marked with @MainActor rather than marking the entire class
-// to avoid issues with XCTestCase's non-Sendable nature.
-final class UITests: XCTestCase {
+@Suite("UI Tests")
+struct UITestsSuite {
     
     // UI tests are typically done through XCUITest in a separate test target
     // These are more like view inspection tests
     
-    @MainActor
-    func testContentViewCreation() async throws {
+    @Test("Should create ContentView without crashing")
+    @MainActor func testContentViewCreation() async throws {
         // Just verify the view can be created without crashing
         let viewModel = MainViewModel()
         let settingsViewModel = SettingsViewModel()
@@ -30,9 +29,9 @@ final class UITests: XCTestCase {
         
         // This is a simplified test to verify that view creation doesn't crash
         // The actual view initialization would depend on ContentView's parameters
-        XCTAssertNotNil(viewModel)
-        XCTAssertNotNil(settingsViewModel)
-        XCTAssertNotNil(ndiViewModel)
+        #expect(viewModel.title.isEmpty, "Newly created view model should have empty title")
+        #expect(!settingsViewModel.isProcessing, "New settings view model should not be processing")
+        #expect(!ndiViewModel.isStreaming, "New NDI view model should not be streaming")
     }
     
     // MARK: - Testing SwiftUI Views with ViewInspector
@@ -41,6 +40,7 @@ final class UITests: XCTestCase {
     // https://github.com/nalexn/ViewInspector
     
     // For example:
+    // @Test("Should display correct viewer count")
     // @MainActor
     // func testViewerCountDisplay() async throws {
     //     let viewModel = MainViewModel()
@@ -49,7 +49,7 @@ final class UITests: XCTestCase {
     //     
     //     let view = MainView(viewModel: viewModel)
     //     let viewerText = try view.inspect().find(viewWithId: "viewerCount").text().string()
-    //     XCTAssertEqual(viewerText, "100")
+    //     #expect(viewerText == "100")
     // }
     
     // MARK: - Snapshot Testing
@@ -57,6 +57,7 @@ final class UITests: XCTestCase {
     // Another approach would be to use snapshot testing to verify UI appearance
     // https://github.com/pointfreeco/swift-snapshot-testing
     
+    // @Test("Should match snapshot for live state")
     // @MainActor
     // func testMainViewSnapshot() async {
     //     let viewModel = MainViewModel()

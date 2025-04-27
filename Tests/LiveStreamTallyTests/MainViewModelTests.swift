@@ -1,41 +1,34 @@
 //
-//  MainViewModelTests.swift
+//  MainViewModelTestingTests.swift
 //  LiveStreamTallyTests
 //
-//  Created as a test scaffolding
+//  Created as an example of Swift Testing framework
 //
 
-import XCTest
+import Testing
 import Combine
 @testable import LiveStreamTally
 
-// Note: Testing with Swift 6.1's actor isolation is challenging in XCTest.
-// Individual test methods are marked with @MainActor rather than marking the entire class
-// to avoid issues with XCTestCase's non-Sendable nature.
-final class MainViewModelTests: XCTestCase {
+// Using a different name to avoid conflict with XCTest class
+@Suite("Main View Model Tests")
+struct MainViewModelTestingSuite: ~Copyable {
+    // We won't use Combine cancellables since it's causing issues with mutability
+    // Instead, we'd use a different approach for Swift Testing
     
-    private var cancellables = Set<AnyCancellable>()
-    
-    override func tearDown() {
-        cancellables.removeAll()
-        super.tearDown()
-    }
-    
-    // This is a placeholder test that demonstrates how to work with @MainActor tests
-    // In a real implementation, you would use the mock PreferencesManager
-    @MainActor
-    func testInitialization() async {
+    // This is a placeholder test that demonstrates how Swift Testing works with @MainActor
+    @Test("Should initialize correctly")
+    @MainActor func testInitialization() async {
         // Initialize the view model
         let viewModel = MainViewModel()
         
-        // Just verify it doesn't crash
-        XCTAssertNotNil(viewModel)
+        // Just verify something about the view model
+        #expect(!viewModel.isLive)
     }
     
     // MARK: - Tests with mock dependencies
     
-    @MainActor
-    func testLiveStatusUpdateFromService() async {
+    @Test("Should update UI state when live status changes")
+    @MainActor func testLiveStatusUpdateFromService() async {
         // This will be a test that verifies the view model updates correctly
         // when the service returns a live status
         // It would use a mock YouTube service
@@ -46,13 +39,13 @@ final class MainViewModelTests: XCTestCase {
         // mockService.mockLiveStatus = LiveStatus(isLive: true, viewerCount: 100, title: "Test Stream", videoId: "test123")
         // let viewModel = MainViewModel(youtubeService: mockService)
         // await viewModel.checkLiveStatus()
-        // XCTAssertTrue(viewModel.isLive)
-        // XCTAssertEqual(viewModel.viewerCount, 100)
-        // XCTAssertEqual(viewModel.title, "Test Stream")
+        // #expect(viewModel.isLive)
+        // #expect(viewModel.viewerCount == 100)
+        // #expect(viewModel.title == "Test Stream")
     }
     
-    @MainActor
-    func testErrorHandlingFromService() async {
+    @Test("Should handle service errors correctly")
+    @MainActor func testErrorHandlingFromService() async {
         // This will be a test that verifies the view model handles errors from the service correctly
         
         // TODO: Implement this test with a proper mock/stub for YouTubeService that throws errors
@@ -61,12 +54,12 @@ final class MainViewModelTests: XCTestCase {
         // mockService.mockError = YouTubeError.quotaExceeded
         // let viewModel = MainViewModel(youtubeService: mockService)
         // await viewModel.checkLiveStatus()
-        // XCTAssertNotNil(viewModel.error)
-        // XCTAssertTrue(viewModel.error?.contains("quota") ?? false)
+        // #expect(viewModel.error != nil)
+        // #expect(viewModel.error?.contains("quota") ?? false)
     }
     
-    @MainActor
-    func testTimerUpdatesWithLiveStatusChange() async {
+    @Test("Should update timer intervals when live status changes")
+    @MainActor func testTimerUpdatesWithLiveStatusChange() async {
         // This will test that the timer interval updates when the live status changes
         
         // TODO: Implement this test with a timer mock and verification that
@@ -75,16 +68,16 @@ final class MainViewModelTests: XCTestCase {
     
     // MARK: - Test Preference Changes
     
-    @MainActor
-    func testApiKeyChangeHandling() async {
+    @Test("Should reinitialize service when API key changes")
+    @MainActor func testApiKeyChangeHandling() async {
         // Test that the view model reacts correctly to API key changes
         
         // TODO: Implement this test to verify ViewModel reinitializes YouTube service
         // when API key is changed
     }
     
-    @MainActor
-    func testChannelIdChangeHandling() async {
+    @Test("Should restart monitoring when channel ID changes")
+    @MainActor func testChannelIdChangeHandling() async {
         // Test that the view model reacts correctly to channel ID changes
         
         // TODO: Implement this test to verify ViewModel restarts monitoring when
