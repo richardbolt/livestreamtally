@@ -51,7 +51,7 @@ else
             SUITE_NAME="PreferencesManagerTestsSuite"
             ;;
         "MainViewModel")
-            SUITE_NAME="MainViewModelTestingSuite"
+            SUITE_NAME="MainViewModelTestsSuite"
             ;;
         "UI")
             SUITE_NAME="UITestsSuite"

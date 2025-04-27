@@ -41,49 +41,72 @@ struct NDIBroadcasterTestsSuite {
     
     // MARK: - Mock Tests
     
-    // In a real implementation, we'd create a protocol for NDIBroadcaster
-    // and mock it for testing. For now, we'll just outline what those tests would look like.
-    
     @Test("Should start and stop correctly")
     @MainActor func testStartAndStop() async {
-        // This would test the start and stop methods, which are @MainActor isolated
-        // So this test needs to be marked with @MainActor
+        // Create a mock broadcaster instead of using the real one
+        let mockBroadcaster = MockNDIBroadcaster()
         
-        // Example:
-        // let broadcaster = NDIBroadcaster()
-        // let viewModel = MainViewModel()
-        // broadcaster.start(name: "TestOutput", viewModel: viewModel)
-        // // Verify it's running
-        // broadcaster.stop()
-        // // Verify it's stopped
+        // Create a view model
+        let viewModel = MainViewModel()
         
-        // Skip test without failing
-        #expect(Bool(true), "Skipping actual implementation for now")
+        // Start the broadcaster
+        mockBroadcaster.start(name: "TestOutput", viewModel: viewModel)
+        
+        // Verify it's started
+        #expect(mockBroadcaster.isStarted)
+        #expect(mockBroadcaster.startCalled)
+        
+        // Stop the broadcaster
+        mockBroadcaster.stop()
+        
+        // Verify it's stopped
+        #expect(!mockBroadcaster.isStarted)
+        #expect(mockBroadcaster.stopCalled)
     }
     
     @Test("Should format metadata correctly")
     func testNDIMetadataFormat() {
-        // This would test that the metadata string is formatted correctly
-        // Example:
-        // let mockBroadcaster = MockNDIBroadcaster()
-        // mockBroadcaster.sendTally(isLive: true, viewerCount: 100, title: "Test Stream")
-        // #expect(mockBroadcaster.lastMetadata.contains("isLive=\"true\""))
-        // #expect(mockBroadcaster.lastMetadata.contains("viewerCount=\"100\""))
-        // #expect(mockBroadcaster.lastMetadata.contains("title=\"Test Stream\""))
+        // Create a mock broadcaster
+        let mockBroadcaster = MockNDIBroadcaster()
         
-        // Skip test without failing
-        #expect(Bool(true), "Skipping actual implementation for now")
+        // Send a tally update with test data
+        mockBroadcaster.sendTally(isLive: true, viewerCount: 100, title: "Test Stream")
+        
+        // Verify the metadata was formatted correctly
+        #expect(mockBroadcaster.sendTallyCalled)
+        #expect(mockBroadcaster.lastIsLive)
+        #expect(mockBroadcaster.lastViewerCount == 100)
+        #expect(mockBroadcaster.lastTitle == "Test Stream")
+        
+        // Verify the metadata string contains the correct attributes
+        let metadata = mockBroadcaster.lastMetadata ?? ""
+        #expect(metadata.contains("isLive=\"true\""))
+        #expect(metadata.contains("viewerCount=\"100\""))
+        #expect(metadata.contains("title=\"Test Stream\""))
     }
     
     @Test("Should handle special characters in titles")
     func testSpecialCharacterHandling() {
-        // This would test that special characters in the title are properly escaped
-        // Example:
-        // let mockBroadcaster = MockNDIBroadcaster()
-        // mockBroadcaster.sendTally(isLive: true, viewerCount: 100, title: "Test \"Stream\"")
-        // #expect(mockBroadcaster.lastMetadata.contains("title=\"Test &quot;Stream&quot;\""))
+        // Create a mock broadcaster
+        let mockBroadcaster = MockNDIBroadcaster()
         
-        // Skip test without failing
-        #expect(Bool(true), "Skipping actual implementation for now")
+        // Send a tally update with a title containing special characters
+        let titleWithSpecialChars = "Test \"Stream\" & <Tags>"
+        mockBroadcaster.sendTally(isLive: true, viewerCount: 100, title: titleWithSpecialChars)
+        
+        // Verify the metadata was created
+        #expect(mockBroadcaster.sendTallyCalled)
+        #expect(mockBroadcaster.lastTitle == titleWithSpecialChars)
+        
+        // Verify the special characters were properly escaped in the metadata
+        let metadata = mockBroadcaster.lastMetadata ?? ""
+        
+        // The double quotes should be escaped as &quot;
+        #expect(metadata.contains("&quot;"))
+        #expect(!metadata.contains("title=\"Test \"Stream\" & <Tags>\""))
+        
+        // The metadata should still be valid XML
+        #expect(metadata.hasPrefix("<ndi_metadata "))
+        #expect(metadata.hasSuffix("/>"))
     }
 } 

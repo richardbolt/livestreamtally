@@ -10,6 +10,8 @@ import Foundation
 
 // MARK: - Mock YouTube Service
 
+// We'll create an independent mock that doesn't rely on the actual service
+@MainActor
 class MockYouTubeService {
     var mockLiveStatus: LiveStatus?
     var mockError: Error?
@@ -21,11 +23,7 @@ class MockYouTubeService {
     var clearCacheCalled = false
     
     init() {}
-}
-
-// Make it conform to the same interface as YouTubeService
-@MainActor
-extension MockYouTubeService {
+    
     func checkLiveStatus(channelId: String, uploadPlaylistId: String) async throws -> LiveStatus {
         checkLiveStatusCalled = true
         
@@ -46,7 +44,7 @@ extension MockYouTubeService {
         return resolvedChannelInfo ?? ("UC12345", "UU12345")
     }
     
-    func clearCache() {
+    func clearCache() async {
         clearCacheCalled = true
     }
 }
