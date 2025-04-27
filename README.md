@@ -82,6 +82,45 @@ make logs     # Stream debug+ level logs from the app
 make help     # Display help information
 ```
 
+## Testing
+
+LiveStreamTally includes a comprehensive test suite designed to ensure the application's reliability and correctness. The tests are structured to handle Swift 6.1's strict actor isolation and cover the major components of the application.
+
+### Test Structure
+
+The test suite is organized into the following test files:
+
+- **YouTubeServiceTests**: Tests for the YouTube API integration
+- **PreferencesManagerTests**: Tests for user preference storage and retrieval
+- **MainViewModelTests**: Tests for the main view model functionality
+- **NDIBroadcasterTests**: Tests for NDI broadcasting capabilities
+- **UITests**: Tests for SwiftUI components
+
+### Running Tests
+
+You can run tests using one of the following methods:
+
+1. To run all tests (requires NDI SDK installed):
+   ```bash
+   make test
+   ```
+
+2. To run specific tests without NDI dependencies:
+   ```bash
+   ./run_tests.sh YouTubeServiceTests
+   ```
+
+3. To run a specific test method:
+   ```bash
+   swift test --filter YouTubeServiceTests/testInitWithValidApiKey
+   ```
+
+### Actor Isolation in Tests
+
+Since LiveStreamTally uses Swift 6.1's strict actor isolation with `@MainActor` on many of its classes, tests are designed to respect these isolation boundaries. Test methods that interact with actor-isolated code are properly marked with `@MainActor` and use the `async/await` pattern.
+
+For more details about the test design, see the [Tests README](Tests/README.md).
+
 ## Contributing
 
 Contributions to Live Stream Tally are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) for details on how to submit changes and the process for reviewing pull requests.

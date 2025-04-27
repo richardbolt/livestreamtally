@@ -55,7 +55,9 @@ package: build
 # Run tests
 test:
 	@echo "Running tests..."
-	$(SWIFT) test
+	@echo "Note: Tests require NDI SDK to be installed at /Library/NDI SDK for Apple/"
+	@echo "To run specific tests without NDI, use: ./run_tests.sh [test_target]"
+	./run_tests.sh all
 
 # Open a log stream
 logs:

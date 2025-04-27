@@ -51,6 +51,25 @@ let package = Package(
         .systemLibrary(
             name: "NDIWrapper",
             path: "Sources/NDIWrapper"
+        ),
+        .testTarget(
+            name: "LiveStreamTallyTests",
+            dependencies: [
+                "LiveStreamTally",
+                .product(name: "Logging", package: "swift-log")
+            ],
+            path: "Tests/LiveStreamTallyTests",
+            exclude: [
+                "TestPlan.md"
+            ],
+            linkerSettings: [
+                .linkedFramework("AppKit"),
+                .unsafeFlags([
+                    "-L/Library/NDI SDK for Apple/lib/macOS",
+                    "-Xlinker", "-rpath", "-Xlinker", "/Library/NDI SDK for Apple/lib/macOS"
+                ]),
+                .linkedLibrary("ndi")
+            ]
         )
     ]
 ) 
