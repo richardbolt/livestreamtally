@@ -165,7 +165,7 @@ struct SettingsView: View {
                         
                         // Description for both intervals
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("YouTube API Quota Information:")
+                            Text("YouTube Data API Quota Information:")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .fontWeight(.medium)
@@ -186,6 +186,10 @@ struct SettingsView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .padding(.top, 2)
+                                
+                            Link("More about YouTube API quota costs", destination: URL(string: "https://developers.google.com/youtube/v3/determine_quota_cost")!)
+                                .font(.caption)
+                                .padding(.top, 4)
                         }
                     }
                     .padding(.vertical, 8)
@@ -200,42 +204,51 @@ struct SettingsView: View {
             .formStyle(.grouped)
             .scrollDisabled(false)  // Keep scrolling enabled to handle variable content height
             
-            // Bottom button area
-            HStack {
-                Spacer()
-                
-                if isProcessing || viewModel.isProcessing {
+            // Status indicator when saving
+            if isProcessing || viewModel.isProcessing {
+                HStack {
+                    Spacer()
                     ProgressView()
+                        .controlSize(.small)
                         .padding(.trailing, 8)
+                    Text("Saving...")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
                 }
-                
-                Button("Done") {
-                    isProcessing = true
-                    
-                    Task {
-                        // Save settings using the new ViewModel
-                        await viewModel.saveSettings(
-                            channelId: channelId,
-                            apiKey: apiKey
-                        )
-                        
-                        // Always start monitoring to refresh the state
-                        await mainViewModel.startMonitoring()
-                        
-                        isProcessing = false
-                        dismiss()
-                    }
-                }
-                .keyboardShortcut(.defaultAction)
-                .controlSize(.large)
-                .buttonStyle(.borderedProminent)
-                .disabled(isProcessing || viewModel.isProcessing)
+                .frame(height: 30)
+                .background(Color(NSColor.controlBackgroundColor))
             }
-            .padding(16)
-            .background(Color(NSColor.controlBackgroundColor))
         }
-        .frame(width: 400, height: 650)
+        .frame(width: 400, height: 610)
         .preferredColorScheme(.dark)
+        .onChange(of: channelId) { _ in saveSettings() }
+        .onChange(of: apiKey) { _ in saveSettings() }
+        .onChange(of: liveCheckInterval) { _ in saveSettings() }
+        .onChange(of: notLiveCheckInterval) { _ in saveSettings() }
+        .onDisappear {
+            saveSettings()
+        }
+    }
+    
+    private func saveSettings() {
+        // Avoid saving settings while processing is already happening
+        guard !isProcessing else { return }
+        
+        Task {
+            isProcessing = true
+            
+            // Save settings using the ViewModel
+            await viewModel.saveSettings(
+                channelId: channelId,
+                apiKey: apiKey
+            )
+            
+            // Start monitoring to refresh the state
+            await mainViewModel.startMonitoring()
+            
+            isProcessing = false
+        }
     }
 }
 
