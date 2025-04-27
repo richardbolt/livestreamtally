@@ -6,6 +6,7 @@
 build/
 DerivedData/
 *.app
+dist/
 
 ## Various settings
 *.pbxuser

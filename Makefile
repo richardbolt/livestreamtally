@@ -13,7 +13,7 @@ SWIFT = swift
 SWIFT_BUILD_FLAGS = -c release
 SIGN_IDENTITY ?= "-"  # Use "-" for ad-hoc signing, or set via environment variable
 
-.PHONY: all clean build run sign package test help
+.PHONY: all clean build run sign package package-dmg package-zip test help
 
 # Default target
 all: clean build
@@ -49,8 +49,23 @@ sign:
 package: build
 	@echo "Creating distributable package..."
 	mkdir -p dist
+	@echo "Creating DMG..."
+	./create_dmg.sh
+	@echo "Package created at dist/$(APP_NAME).dmg"
+
+# Create a DMG package
+package-dmg: build
+	@echo "Creating DMG package..."
+	mkdir -p dist
+	./create_dmg.sh
+	@echo "DMG created at dist/$(APP_NAME).dmg"
+
+# Create a distributable ZIP package (legacy)
+package-zip: build
+	@echo "Creating ZIP package..."
+	mkdir -p dist
 	ditto -c -k --keepParent $(APP_NAME).app dist/$(APP_NAME).zip
-	@echo "Package created at dist/$(APP_NAME).zip"
+	@echo "ZIP package created at dist/$(APP_NAME).zip"
 
 # Run tests
 test:
@@ -76,7 +91,9 @@ help:
 	@echo "  build      Build the app and create app bundle"
 	@echo "  run        Run the app"
 	@echo "  sign       Sign the app (use SIGN_IDENTITY env var to specify identity)"
-	@echo "  package    Create a distributable zip package"
+	@echo "  package    Create a distributable DMG package"
+	@echo "  package-dmg Create a distributable DMG package (same as package)"
+	@echo "  package-zip Create a distributable ZIP package (legacy format)"
 	@echo "  test       Run Swift tests"
 	@echo "  logs       Stream debug+ level logs from the app"
 	@echo "  help       Display this help information"
