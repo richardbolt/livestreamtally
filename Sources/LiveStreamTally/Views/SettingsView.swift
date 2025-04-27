@@ -43,7 +43,7 @@ struct SettingsView: View {
         VStack(spacing: 0) {
             Form {
                 Section {
-                    VStack(alignment: .leading, spacing: 24) {
+                    VStack(alignment: .leading, spacing: 16) {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
                                 Text("API Key")
@@ -83,7 +83,7 @@ struct SettingsView: View {
                             
                             Link("How to get a YouTube API key", destination: URL(string: "https://developers.google.com/youtube/v3/getting-started")!)
                                 .font(.caption)
-                                .padding(.top, 4)
+                                .padding(.top, 2)
                         }
                         
                         VStack(alignment: .leading, spacing: 8) {
@@ -117,7 +117,7 @@ struct SettingsView: View {
                             
                             Link("How to find your YouTube Channel ID", destination: URL(string: "https://support.google.com/youtube/answer/3250431")!)
                                 .font(.caption)
-                                .padding(.top, 4)
+                                .padding(.top, 2)
                         }
                     }
                     .padding(.vertical, 8)
@@ -130,47 +130,42 @@ struct SettingsView: View {
                 }
                 
                 Section {
-                    VStack(alignment: .leading, spacing: 24) {
-                        // Live Check Interval
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("When Live (seconds)")
-                                .foregroundStyle(.secondary)
-                            
+                    VStack(alignment: .leading, spacing: 16) {
+                        // Live Check Interval (more compact version)
+                        VStack(alignment: .leading, spacing: 4) {
                             HStack {
-                                Slider(value: $liveCheckInterval, in: 10...300, step: 5)
-                                    .frame(maxWidth: .infinity)
-                                    .onChange(of: liveCheckInterval) { newValue in
-                                        viewModel.liveCheckInterval = newValue
-                                    }
-                                
+                                Text("When Live (seconds)")
+                                    .foregroundStyle(.secondary)
+                                Spacer()
                                 Text("\(Int(liveCheckInterval))")
-                                    .frame(width: 40, alignment: .trailing)
                                     .foregroundStyle(.secondary)
                             }
                             
-                            Text("How often to check stream status while live")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                            Slider(value: $liveCheckInterval, in: 5...300, step: 5)
+                                .onChange(of: liveCheckInterval) { newValue in
+                                    viewModel.liveCheckInterval = newValue
+                                }
                         }
                         
-                        // Not Live Check Interval
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("When Not Live (seconds)")
-                                .foregroundStyle(.secondary)
-                            
+                        // Not Live Check Interval (more compact version)
+                        VStack(alignment: .leading, spacing: 4) {
                             HStack {
-                                Slider(value: $notLiveCheckInterval, in: 10...300, step: 5)
-                                    .frame(maxWidth: .infinity)
-                                    .onChange(of: notLiveCheckInterval) { newValue in
-                                        viewModel.notLiveCheckInterval = newValue
-                                    }
-                                
+                                Text("When Not Live (seconds)")
+                                    .foregroundStyle(.secondary)
+                                Spacer()
                                 Text("\(Int(notLiveCheckInterval))")
-                                    .frame(width: 40, alignment: .trailing)
                                     .foregroundStyle(.secondary)
                             }
                             
-                            Text("How often to check if you've gone live")
+                            Slider(value: $notLiveCheckInterval, in: 5...300, step: 5)
+                                .onChange(of: notLiveCheckInterval) { newValue in
+                                    viewModel.notLiveCheckInterval = newValue
+                                }
+                        }
+                        
+                        // Description for both intervals
+                        HStack(spacing: 0) {
+                            Text("Note: Lower values use more YouTube API quota")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -185,7 +180,7 @@ struct SettingsView: View {
                 }
             }
             .formStyle(.grouped)
-            .scrollDisabled(false)  // Allow scrolling now that we have more content
+            .scrollDisabled(false)  // Keep scrolling enabled to handle variable content height
             
             // Bottom button area
             HStack {
@@ -221,7 +216,7 @@ struct SettingsView: View {
             .padding(16)
             .background(Color(NSColor.controlBackgroundColor))
         }
-        .frame(width: 440, height: 480)  // Increased height to accommodate new elements
+        .frame(width: 400, height: 580)
         .preferredColorScheme(.dark)
     }
 }
