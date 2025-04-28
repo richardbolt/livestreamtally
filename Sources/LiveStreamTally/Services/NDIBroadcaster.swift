@@ -136,6 +136,7 @@ class NDIBroadcaster: @unchecked Sendable {
             frame.timecode = Int64(Date().timeIntervalSince1970 * 1000)
             
             NDIlib_send_send_metadata(sender, &frame)
+            Logger.debug("NDI metadata frame sent successfully", category: .app)
         }
     }
     

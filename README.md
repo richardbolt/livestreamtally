@@ -4,12 +4,13 @@
 [![macOS](https://img.shields.io/badge/macOS-13.0+-lightgrey?style=flat&logo=apple)](https://www.apple.com/macos/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Built with Cursor](https://img.shields.io/badge/Built%20with-Cursor-blue?style=flat&logo=cursor&logoColor=white)](https://cursor.com/)
+[![Website](https://img.shields.io/badge/Website-Live%20Stream%20Tally-blue?style=flat)](https://www.richardbolt.com/live-stream-tally/)
 
 NDI-ready on-air status for any YouTube live streaming channel. Live Stream Tally connects to the YouTube Data API to check a YouTube channel's live status and emits an NDI tally signal.
 
-This is a niche macOS application in that there is limited use for displaying a YouTube channel's live streaming status, or "tally", using NDI output. However, this is perfect for live streamers who want to monitor channel YouTube live status and integrate it with streaming software, like OBS or Wirecast, that support NDI. It's particularly useful for operators using a Multi View.
+This is a niche macOS application in that there is limited use for displaying a YouTube channel's live streaming status, or "tally", using NDI output. However, this is perfect for live streamers who want to monitor channel YouTube live status and integrate it with streaming software, like OBS or Wirecast, that support NDI. It's particularly useful for operators using a Multi Viewer.
 
-This is a niche app and you'll know if you need it!
+This is a niche app and you'll know if you need it! 
 
 ## Features
 
@@ -19,8 +20,12 @@ This is a niche app and you'll know if you need it!
     - Live Stream title
     - Viewer count
 - NDI output at 720p for integration with streaming software or Multi Viewers
+- NDI Tally signal for integration with production equipment
 - Dark mode support
 - Native macOS app with modern SwiftUI interface
+- Zero data collection - your streaming data stays on your device
+
+For more details about the app, visit [Live Stream Tally website](https://www.richardbolt.com/live-stream-tally/).
 
 ## Screenshots
 
