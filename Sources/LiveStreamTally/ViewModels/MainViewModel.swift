@@ -24,11 +24,24 @@ final class MainViewModel: ObservableObject {
             if oldValue != isLive {
                 // Update timer interval when live status changes
                 updateTimerInterval()
+                Logger.debug("isLive changed from \(oldValue) to \(isLive)", category: .main)
             }
         }
     }
-    @Published var viewerCount = 0
-    @Published var title = ""
+    @Published var viewerCount = 0 {
+        didSet {
+            if oldValue != viewerCount {
+                Logger.debug("viewerCount changed from \(oldValue) to \(viewerCount)", category: .main)
+            }
+        }
+    }
+    @Published var title = "" {
+        didSet {
+            if oldValue != title {
+                Logger.debug("title changed to: \(title)", category: .main)
+            }
+        }
+    }
     @Published var error: String?
     @Published var isLoading = false
     @Published var currentTime: String = ""
