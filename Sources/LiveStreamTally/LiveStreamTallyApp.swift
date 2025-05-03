@@ -231,46 +231,53 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        // --- Manual Window Creation & Configuration ---
-        Logger.debug("Manually creating and showing main window", category: .app)
+        // --- Window Creation & Configuration ---
+        var window: NSWindow? = NSApp.windows.first // Check if a window already exists
 
-        let contentView = ContentView()
-            .environmentObject(mainViewModel)
-            .environmentObject(ndiViewModel)
-        
-        let hostingView = NSHostingView(rootView: contentView)
+        if let existingWindow = window {
+            Logger.debug("Found existing window, configuring...", category: .app)
+            // Configure the existing window
+            window = existingWindow // Ensure 'window' variable holds the found window
+            // Apply necessary configurations that might not have been set by WindowGroup
+            window?.delegate = self
+            window?.title = "Live Stream Tally"
+            window?.aspectRatio = NSSize(width: 16, height: 9)
+            window?.setFrame(NSRect(x: 0, y: 0, width: 1280, height: 720), display: true) // Ensure size
+            window?.center() // Center it
+            window?.makeKeyAndOrderFront(nil) // Ensure it's frontmost
+        } else {
+            Logger.debug("No existing window found. Manually creating and showing main window", category: .app)
+            // Manually create the window if none exists
+            let contentView = ContentView()
+                .environmentObject(mainViewModel)
+                .environmentObject(ndiViewModel)
 
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1280, height: 720), // Initial size
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
-            backing: .buffered, defer: false)
-        window.center() // Center on screen
-        window.setFrameAutosaveName("Main Window") // Remember position
-        window.isReleasedWhenClosed = false
-        window.title = "Live Stream Tally"
-        window.contentView = hostingView
-        window.aspectRatio = NSSize(width: 16, height: 9)
-        window.collectionBehavior = [.managed]
-        window.delegate = self // Handle close
+            let hostingView = NSHostingView(rootView: contentView)
 
-        // Create and retain window controller
-        windowController = MainWindowController(window: window)
-        
-        // Show the window and make it key
-        windowController?.showWindow(nil) // Use the controller to show
-        window.makeKeyAndOrderFront(nil) 
-        
-        // Activate the application
-        NSApplication.shared.activate(ignoringOtherApps: true)
-        
-        // --- Start NDI --- 
-        // Moved from ContentView.onAppear
-        Logger.debug("Starting NDI stream from AppDelegate after window setup", category: .app)
+            window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 1280, height: 720), // Initial size
+                styleMask: [.titled, .closable, .miniaturizable, .resizable],
+                backing: .buffered, defer: false)
+            window?.center()
+            window?.title = "Live Stream Tally"
+            window?.contentView = hostingView
+            window?.delegate = self
+            window?.aspectRatio = NSSize(width: 16, height: 9)
+            window?.makeKeyAndOrderFront(nil)
+        }
+
+        // Ensure window controller is set up (might be redundant if window existed, but safe)
+        if let window = window {
+            windowController = MainWindowController(window: window)
+        } else {
+            Logger.error("Failed to obtain window instance.", category: .app)
+            return // Can't proceed without a window
+        }
+
+        // --- Start NDI ---
+        Logger.debug("Setting up and starting NDI", category: .app)
         ndiViewModel.setupWithMainViewModel(mainViewModel)
         ndiViewModel.startStreaming()
-        // -----------------
-
-        // Removed delayed activation task as we now create/show directly
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
