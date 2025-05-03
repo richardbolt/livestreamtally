@@ -73,13 +73,47 @@ struct LiveStreamTallyApp: App {
         .commands {
             CommandGroup(replacing: .appInfo) {
                 Button("About Live Stream Tally") {
-                    NSApplication.shared.orderFrontStandardAboutPanel(
-                        options: [
-                            NSApplication.AboutPanelOptionKey.credits: NSAttributedString(
-                                string: "NDI® is a registered trademark of Vizrt NDI AB"
-                            )
-                        ]
-                    )
+                    // Get the main bundle info dictionary
+                    let infoDict = Bundle.main.infoDictionary
+                    let buildNumber = infoDict?["CFBundleVersion"] as? String ?? "Unknown"
+                    
+                    // Get commit hash from Info.plist (set during build)
+                    let gitCommitHash = infoDict?["GitCommitHash"] as? String ?? "unknown"
+                    
+                    // Format the build string including commit hash
+                    let buildString = "Build \(buildNumber)-\(gitCommitHash)"
+                    let ndiCredits = "NDI® is a registered trademark of Vizrt NDI AB"
+                    let combinedCredits = "\(buildString)\n\n\(ndiCredits)"
+                                    
+                    // Create paragraph style for centering
+                    let paragraphStyle = NSMutableParagraphStyle()
+                    paragraphStyle.alignment = .center
+                    
+                    // Define attributes for the credits text
+                    let attributes: [NSAttributedString.Key: Any] = [
+                        .font: NSFont.systemFont(ofSize: NSFont.systemFontSize(for: .small)), // Match small system font size
+                        .paragraphStyle: paragraphStyle
+                    ]
+                    
+                    // Prepare options for the about panel
+                    var options: [NSApplication.AboutPanelOptionKey: Any] = [
+                        // Don't set .applicationVersion, let it default from Info.plist
+                        // Set the combined build string and NDI text as credits with attributes
+                        .credits: NSAttributedString(string: combinedCredits, attributes: attributes)
+                    ]
+                    
+                    // Add application name if available
+                    if let appName = infoDict?["CFBundleName"] as? String {
+                        options[NSApplication.AboutPanelOptionKey.applicationName] = appName
+                    }
+                    
+                    // Add copyright if available
+                    if let copyright = infoDict?["NSHumanReadableCopyright"] as? String {
+                        // Use rawValue for the Copyright key
+                        options[NSApplication.AboutPanelOptionKey(rawValue: "Copyright")] = copyright // Keep copyright separate
+                    }
+
+                    NSApplication.shared.orderFrontStandardAboutPanel(options: options)
                 }
             }
             
