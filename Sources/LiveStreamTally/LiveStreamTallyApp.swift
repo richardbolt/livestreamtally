@@ -118,6 +118,15 @@ struct LiveStreamTallyApp: App {
             }
             
             CommandGroup(replacing: .systemServices) {}  // Remove Services menu
+
+            // Replace the default Help menu item
+            CommandGroup(replacing: .help) {
+                Button("Live Stream Tally Help") {
+                    if let url = URL(string: "https://www.richardbolt.com/live-stream-tally/") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+            }
         }
         
         Settings {
