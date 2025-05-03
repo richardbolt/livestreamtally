@@ -60,6 +60,14 @@ cp .build/release/LiveStreamTally LiveStreamTally.app/Contents/MacOS/
 # Copy Info.plist
 cp Info.plist LiveStreamTally.app/Contents/
 
+# Get short git hash
+GIT_HASH=$(git rev-parse --short HEAD)
+
+# Add git hash to Info.plist
+echo "Adding Git hash ($GIT_HASH) to Info.plist..."
+/usr/libexec/PlistBuddy -c "Add :GitCommitHash string $GIT_HASH" "LiveStreamTally.app/Contents/Info.plist" || \
+/usr/libexec/PlistBuddy -c "Set :GitCommitHash $GIT_HASH" "LiveStreamTally.app/Contents/Info.plist"
+
 # Create NDI framework structure
 mkdir -p LiveStreamTally.app/Contents/Frameworks/NDI.framework/Versions/A/{Resources,Headers}
 
