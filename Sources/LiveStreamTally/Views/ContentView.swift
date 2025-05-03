@@ -16,7 +16,8 @@ struct ContentView: View {
     @EnvironmentObject private var ndiViewModel: NDIViewModel
     private let baseWidth: CGFloat = 1280
     private let baseHeight: CGFloat = 720
-   
+    @State private var ndiObserver: NSObjectProtocol? // Store observer reference
+
     private func startMonitoring() async {
         await viewModel.startMonitoring()
     }
@@ -55,18 +56,23 @@ struct ContentView: View {
         }
         .aspectRatio(16/9, contentMode: .fit)
         .onAppear {
-            Task {
+            Task { @MainActor in
+                Logger.debug("ContentView onAppear", category: .app)
+                
+                // NDI setup/start is now handled by AppDelegate after window creation
+                
+                // Start YouTube monitoring
                 await startMonitoring()
-            }
-            DispatchQueue.main.async {
-                ndiViewModel.startStreaming()
             }
         }
         .onDisappear {
+            // Remove notification observer if it exists
+            if let observer = ndiObserver {
+                NotificationCenter.default.removeObserver(observer)
+            }
             Task {
                 await stopMonitoring()
             }
-            ndiViewModel.stopStreaming()
         }
     }
     

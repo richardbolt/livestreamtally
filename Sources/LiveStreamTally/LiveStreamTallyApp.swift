@@ -26,10 +26,24 @@ struct LiveStreamTallyApp: App {
     @StateObject private var mainViewModel: MainViewModel
     @StateObject private var ndiViewModel: NDIViewModel
     
+    // Add app delegate
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    
     init() {
+        Logger.debug("LiveStreamTallyApp init", category: .app)
         // Use the shared instance instead of creating a new one each time
-        _mainViewModel = StateObject(wrappedValue: LiveStreamTallyApp.sharedMainViewModel)
-        _ndiViewModel = StateObject(wrappedValue: NDIViewModel(mainViewModel: LiveStreamTallyApp.sharedMainViewModel))
+        let sharedVM = LiveStreamTallyApp.sharedMainViewModel
+        _mainViewModel = StateObject(wrappedValue: sharedVM)
+        // Initialize NDIViewModel without the mainViewModel reference initially
+        let initialNDIViewModel = NDIViewModel() // Create instance first
+        _ndiViewModel = StateObject(wrappedValue: initialNDIViewModel) // Wrap it
+
+        // Pass view model instances to AppDelegate
+        appDelegate.mainViewModel = sharedVM
+        appDelegate.ndiViewModel = initialNDIViewModel
+
+        // Now setup lifecycle handler with the initialized NDIViewModel
+        lifecycleHandler.setupWithNDIViewModel(initialNDIViewModel)
     }
     
     var body: some Scene {
@@ -40,30 +54,13 @@ struct LiveStreamTallyApp: App {
                 .environmentObject(mainViewModel)
                 .environmentObject(ndiViewModel)
                 .onAppear {
-                    // Ensure window is visible and properly sized
-                    if let window = NSApp.windows.first(where: { $0.title == "Live Stream Tally" }) {
-                        window.center()
-                        window.makeKeyAndOrderFront(nil)
-                        
-                        // Set initial size to 1280x720 (16:9)
-                        window.setFrame(NSRect(x: window.frame.origin.x,
-                                             y: window.frame.origin.y,
-                                             width: 1280,
-                                             height: 720),
-                                      display: true)
-                        
-                        // Make sure window appears in dock
-                        window.collectionBehavior = [.managed]
-                        
-                        // Enforce 16:9 aspect ratio
-                        window.aspectRatio = NSSize(width: 16, height: 9)
-                        
-                        // Set window delegate to handle window closing
-                        window.delegate = WindowDelegate.shared
+                    Task { @MainActor in
+                        Logger.debug("ContentView onAppear", category: .app)
+                        // Set up the NDI view model with mainViewModel only after window exists
+                        ndiViewModel.setupWithMainViewModel(mainViewModel)
+                        // Set up the NDI view model in our lifecycle handler
+                        lifecycleHandler.setupWithNDIViewModel(ndiViewModel)
                     }
-                    
-                    // Set up the NDI view model in our lifecycle handler
-                    lifecycleHandler.setupWithNDIViewModel(ndiViewModel)
                 }
                 .onDisappear {
                     // Stop NDI streaming when window is closed
@@ -160,6 +157,131 @@ class AppLifecycleHandler: NSObject {
     deinit {
         // Remove notification observer
         NotificationCenter.default.removeObserver(self)
+    }
+}
+
+// Add MainWindowController class
+@MainActor
+class MainWindowController: NSWindowController {
+    override func showWindow(_ sender: Any?) {
+        super.showWindow(sender)
+        window?.makeKeyAndOrderFront(sender)
+        NSApplication.shared.activate(ignoringOtherApps: true)
+    }
+    
+    override func windowDidLoad() {
+        super.windowDidLoad()
+        Logger.debug("MainWindowController windowDidLoad", category: .app)
+    }
+}
+
+// Add AppDelegate class
+@MainActor
+class AppDelegate: NSObject, NSApplicationDelegate {
+    private var windowController: MainWindowController?
+    // Add properties to hold view model instances
+    var mainViewModel: MainViewModel?
+    var ndiViewModel: NDIViewModel?
+
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        Logger.debug("applicationWillFinishLaunching", category: .app)
+        // Attempt early activation
+        NSApplication.shared.activate(ignoringOtherApps: true)
+    }
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        Logger.debug("applicationDidFinishLaunching", category: .app)
+
+        guard let mainViewModel = mainViewModel, let ndiViewModel = ndiViewModel else {
+            Logger.error("View models not available in AppDelegate", category: .app)
+            return
+        }
+
+        // --- Manual Window Creation & Configuration ---
+        Logger.debug("Manually creating and showing main window", category: .app)
+
+        let contentView = ContentView()
+            .environmentObject(mainViewModel)
+            .environmentObject(ndiViewModel)
+        
+        let hostingView = NSHostingView(rootView: contentView)
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 1280, height: 720), // Initial size
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered, defer: false)
+        window.center() // Center on screen
+        window.setFrameAutosaveName("Main Window") // Remember position
+        window.isReleasedWhenClosed = false
+        window.title = "Live Stream Tally"
+        window.contentView = hostingView
+        window.aspectRatio = NSSize(width: 16, height: 9)
+        window.collectionBehavior = [.managed]
+        window.delegate = self // Handle close
+
+        // Create and retain window controller
+        windowController = MainWindowController(window: window)
+        
+        // Show the window and make it key
+        windowController?.showWindow(nil) // Use the controller to show
+        window.makeKeyAndOrderFront(nil) 
+        
+        // Activate the application
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        
+        // --- Start NDI --- 
+        // Moved from ContentView.onAppear
+        Logger.debug("Starting NDI stream from AppDelegate after window setup", category: .app)
+        ndiViewModel.setupWithMainViewModel(mainViewModel)
+        ndiViewModel.startStreaming()
+        // -----------------
+
+        // Removed delayed activation task as we now create/show directly
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        Logger.debug("applicationShouldHandleReopen: \(flag)", category: .app)
+        if !flag {
+            // If the window was closed, find it and bring it to the front
+            for window in sender.windows {
+                if window.title == "Live Stream Tally" {
+                    window.makeKeyAndOrderFront(self)
+                    NSApplication.shared.activate(ignoringOtherApps: true)
+                    break
+                }
+            }
+        } else {
+            // If windows are just hidden, standard activation is enough
+            NSApplication.shared.activate(ignoringOtherApps: true)
+        }
+        return true
+    }
+    
+    func applicationWillTerminate(_ notification: Notification) {
+        Logger.info("Application will terminate, cleaning up resources", category: .app)
+        // Clean up NDI resources
+        // Accessing NDIViewModel here might be tricky due to lifecycle.
+        // Consider adding a static cleanup method or ensuring NDIViewModel handles its own cleanup in deinit.
+        // For now, we rely on the lifecycleHandler or NDIViewModel's deinit
+        
+        // Ensure clean shutdown of services if needed
+    }
+}
+
+// Conform AppDelegate to NSWindowDelegate to handle window closing
+extension AppDelegate: NSWindowDelegate {
+    func windowWillClose(_ notification: Notification) {
+        Logger.debug("Main window closing", category: .app)
+        // Stop NDI streaming when the main window is closed
+        ndiViewModel?.stopStreaming()
+        // Allow the app to terminate if needed (or keep running if menu bar extra exists)
+        // Check standard behavior or implement custom logic if required
+    }
+    
+    // Optional: Decide if app should terminate when last window closes
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        Logger.debug("applicationShouldTerminateAfterLastWindowClosed called", category: .app)
+        return true // Standard behavior, change if using MenuBarExtra primarily
     }
 }
 

@@ -22,13 +22,15 @@ class NDIViewModel: ObservableObject {
     
     private let broadcaster = NDIBroadcaster()
     private var framePublisher: AnyCancellable?
-    private let mainViewModel: MainViewModel
+    private var mainViewModel: MainViewModel?
     
     // Add cancellables set to store subscriptions
     private var cancellables = Set<AnyCancellable>()
     
-    init(mainViewModel: MainViewModel) {
-        self.mainViewModel = mainViewModel
+    init(mainViewModel: MainViewModel? = nil) {
+        if let mainViewModel = mainViewModel {
+            self.mainViewModel = mainViewModel
+        }
         
         // Set up subscriptions to mainViewModel publishers for tally updates
         setupTallySubscriptions()
@@ -36,6 +38,8 @@ class NDIViewModel: ObservableObject {
     
     // Set up subscriptions to MainViewModel's published properties
     private func setupTallySubscriptions() {
+        guard let mainViewModel = mainViewModel else { return }
+        
         // Combine the three relevant properties into a single publisher
         mainViewModel.$isLive
             .combineLatest(mainViewModel.$viewerCount, mainViewModel.$title)
@@ -50,9 +54,19 @@ class NDIViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
+    func setupWithMainViewModel(_ mainViewModel: MainViewModel) {
+        self.mainViewModel = mainViewModel
+        // Set up subscriptions after mainViewModel is set
+        setupTallySubscriptions()
+    }
+    
     @MainActor
     func startStreaming() {
         guard !isStreaming else { return }
+        guard let mainViewModel = mainViewModel else {
+            Logger.error("Cannot start NDI streaming: mainViewModel is nil", category: .app)
+            return
+        }
         
         Logger.info("Starting NDI streaming", category: .app)
         
@@ -92,12 +106,12 @@ class NDIViewModel: ObservableObject {
     func updateTally() {
         guard isStreaming else { return }
         
-        Logger.debug("Updating NDI tally with isLive: \(mainViewModel.isLive), viewers: \(mainViewModel.viewerCount)", category: .app)
+        Logger.debug("Updating NDI tally with isLive: \(mainViewModel!.isLive), viewers: \(mainViewModel!.viewerCount)", category: .app)
         
         broadcaster.sendTally(
-            isLive: mainViewModel.isLive,
-            viewerCount: mainViewModel.viewerCount,
-            title: mainViewModel.title
+            isLive: mainViewModel!.isLive,
+            viewerCount: mainViewModel!.viewerCount,
+            title: mainViewModel!.title
         )
     }
 }
