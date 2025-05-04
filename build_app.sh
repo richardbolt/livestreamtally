@@ -14,19 +14,25 @@
 # Exit on error
 set -e
 
+# Use APP_NAME from environment or default to "Live Stream Tally"
+APP_NAME="${APP_NAME:-Live Stream Tally}"
+APP_BUNDLE_NAME="${APP_NAME}.app"
+
 # Optional: Set your Apple Developer ID here
 SIGN_IDENTITY="${SIGN_IDENTITY:-"-"}" # Use "-" for ad-hoc
 
-echo "Building Live Stream Tally app..."
+echo "Building $APP_NAME app..."
 
 # Clean up any existing app bundle
-rm -rf LiveStreamTally.app
+rm -rf "$APP_BUNDLE_NAME"
 
 # Create app bundle structure
-mkdir -p LiveStreamTally.app/Contents/{MacOS,Resources,Frameworks}
+mkdir -p "$APP_BUNDLE_NAME/Contents/MacOS"
+mkdir -p "$APP_BUNDLE_NAME/Contents/Resources"
+mkdir -p "$APP_BUNDLE_NAME/Contents/Frameworks"
 
 # Create iconset directory
-ICONSET="LiveStreamTally.app/Contents/Resources/AppIcon.iconset"
+ICONSET="$APP_BUNDLE_NAME/Contents/Resources/AppIcon.iconset"
 mkdir -p "$ICONSET"
 
 # Copy and rename icons
@@ -52,27 +58,28 @@ ls -la "$ICONSET"
 
 # Convert iconset to icns
 echo "Converting iconset to icns..."
-iconutil -c icns -o "LiveStreamTally.app/Contents/Resources/AppIcon.icns" "$ICONSET"
+iconutil -c icns -o "$APP_BUNDLE_NAME/Contents/Resources/AppIcon.icns" "$ICONSET"
 
 # Copy executable
-cp .build/release/LiveStreamTally LiveStreamTally.app/Contents/MacOS/
+cp .build/release/LiveStreamTally "$APP_BUNDLE_NAME/Contents/MacOS/"
 
 # Copy Info.plist
-cp Info.plist LiveStreamTally.app/Contents/
+cp Info.plist "$APP_BUNDLE_NAME/Contents/"
 
 # Get short git hash
 GIT_HASH=$(git rev-parse --short HEAD)
 
 # Add git hash to Info.plist
 echo "Adding Git hash ($GIT_HASH) to Info.plist..."
-/usr/libexec/PlistBuddy -c "Add :GitCommitHash string $GIT_HASH" "LiveStreamTally.app/Contents/Info.plist" || \
-/usr/libexec/PlistBuddy -c "Set :GitCommitHash $GIT_HASH" "LiveStreamTally.app/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Add :GitCommitHash string $GIT_HASH" "$APP_BUNDLE_NAME/Contents/Info.plist" || \
+/usr/libexec/PlistBuddy -c "Set :GitCommitHash $GIT_HASH" "$APP_BUNDLE_NAME/Contents/Info.plist"
 
 # Create NDI framework structure
-mkdir -p LiveStreamTally.app/Contents/Frameworks/NDI.framework/Versions/A/{Resources,Headers}
+mkdir -p "$APP_BUNDLE_NAME/Contents/Frameworks/NDI.framework/Versions/A/Resources"
+mkdir -p "$APP_BUNDLE_NAME/Contents/Frameworks/NDI.framework/Versions/A/Headers"
 
 # Create framework Info.plist (directly in framework root)
-cat > LiveStreamTally.app/Contents/Frameworks/NDI.framework/Versions/A/Resources/Info.plist << EOF
+cat > "$APP_BUNDLE_NAME/Contents/Frameworks/NDI.framework/Versions/A/Resources/Info.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -100,13 +107,13 @@ cat > LiveStreamTally.app/Contents/Frameworks/NDI.framework/Versions/A/Resources
 EOF
 
 # Copy dylib to Versions/A only (not duplicated in root)
-ditto "/Library/NDI SDK for Apple/lib/macOS/libndi.dylib" "LiveStreamTally.app/Contents/Frameworks/NDI.framework/Versions/A/NDI"
+ditto "/Library/NDI SDK for Apple/lib/macOS/libndi.dylib" "$APP_BUNDLE_NAME/Contents/Frameworks/NDI.framework/Versions/A/NDI"
 
 # Copy headers to Headers directory
-ditto "/Library/NDI SDK for Apple/include/Processing.NDI.Lib.h" "LiveStreamTally.app/Contents/Frameworks/NDI.framework/Versions/A/Headers/"
+ditto "/Library/NDI SDK for Apple/include/Processing.NDI.Lib.h" "$APP_BUNDLE_NAME/Contents/Frameworks/NDI.framework/Versions/A/Headers/"
 
 # Create correct symlinks (relative to framework root)
-cd LiveStreamTally.app/Contents/Frameworks/NDI.framework
+cd "$APP_BUNDLE_NAME/Contents/Frameworks/NDI.framework"
 ln -sfh A Versions/Current
 ln -sfh Versions/Current/NDI NDI
 ln -sfh Versions/Current/Resources Resources
@@ -114,18 +121,23 @@ ln -sfh Versions/Current/Headers Headers
 cd ../../../..
 
 # Update install name
-install_name_tool -change @rpath/libndi.dylib @executable_path/../Frameworks/NDI.framework/NDI LiveStreamTally.app/Contents/MacOS/LiveStreamTally
+install_name_tool -change @rpath/libndi.dylib @executable_path/../Frameworks/NDI.framework/NDI "$APP_BUNDLE_NAME/Contents/MacOS/LiveStreamTally"
 
 # Clean up iconset
 rm -rf "$ICONSET"
 
+# Code sign the NDI framework dylib first (if using a signing identity)
+if [ "$SIGN_IDENTITY" != "-" ]; then
+    echo "Signing NDI framework dylib..."
+    codesign --force --options runtime --sign "$SIGN_IDENTITY" "$APP_BUNDLE_NAME/Contents/Frameworks/NDI.framework/Versions/A/NDI"
+fi
+
 # Code sign the app with entitlements
-echo "Code signing with entitlements..."
-codesign --force --deep --options runtime --sign "$SIGN_IDENTITY" --entitlements LiveStreamTally.entitlements --identifier com.livestreamtally.app LiveStreamTally.app
+echo "Attempting to sign with identity: $SIGN_IDENTITY"
+# Sign the app bundle
+# Note: The identifier here should match Info.plist and the registered App ID
+codesign --force --deep --options runtime --sign "$SIGN_IDENTITY" --entitlements LiveStreamTally.entitlements --identifier com.richardbolt.livestreamtally "$APP_BUNDLE_NAME"
+codesign -vv -d "$APP_BUNDLE_NAME"
 
-# Verify code signing
-echo "Verifying code signing..."
-codesign -vv -d LiveStreamTally.app
-
-echo "App bundle created at LiveStreamTally.app"
-echo "Run with: open LiveStreamTally.app" 
+echo "App bundle created at $APP_BUNDLE_NAME"
+echo "Run with: open \"$APP_BUNDLE_NAME\"" 

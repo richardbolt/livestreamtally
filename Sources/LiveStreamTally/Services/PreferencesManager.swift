@@ -29,11 +29,11 @@ class PreferencesManager {
     
     // MARK: - Notification Names
     
-    struct Notifications {
-        static let channelChanged = Notification.Name("com.livestreamtally.preferences.channelChanged")
-        static let apiKeyChanged = Notification.Name("com.livestreamtally.preferences.apiKeyChanged")
-        static let resolvedChannelChanged = Notification.Name("com.livestreamtally.preferences.resolvedChannelChanged")
-        static let intervalChanged = Notification.Name("com.livestreamtally.preferences.intervalChanged")
+    struct NotificationNames {
+        static let channelChanged = Notification.Name("com.richardbolt.livestreamtally.preferences.channelChanged")
+        static let apiKeyChanged = Notification.Name("com.richardbolt.livestreamtally.preferences.apiKeyChanged")
+        static let resolvedChannelChanged = Notification.Name("com.richardbolt.livestreamtally.preferences.resolvedChannelChanged")
+        static let intervalChanged = Notification.Name("com.richardbolt.livestreamtally.preferences.intervalChanged")
     }
     
     // MARK: - Published Properties
@@ -84,7 +84,7 @@ class PreferencesManager {
         channelId = newValue
         
         // Notify observers
-        postNotification(name: Notifications.channelChanged)
+        postNotification(name: NotificationNames.channelChanged)
     }
     
     func clearChannelCache() {
@@ -112,7 +112,7 @@ class PreferencesManager {
         uploadPlaylistId = playlistId
         
         // Notify observers
-        postNotification(name: Notifications.resolvedChannelChanged)
+        postNotification(name: NotificationNames.resolvedChannelChanged)
     }
     
     // API Key methods (delegating to KeychainManager)
@@ -128,7 +128,7 @@ class PreferencesManager {
         if success {
             // Notify observers if save was successful
             Logger.debug("About to post apiKeyChanged notification", category: .app)
-            postNotification(name: Notifications.apiKeyChanged)
+            postNotification(name: NotificationNames.apiKeyChanged)
         }
         
         return success
@@ -155,7 +155,7 @@ class PreferencesManager {
         notLiveCheckInterval = notLiveInterval
         
         // Notify observers
-        postNotification(name: Notifications.intervalChanged)
+        postNotification(name: NotificationNames.intervalChanged)
     }
     
     // MARK: - Private Methods
@@ -203,7 +203,7 @@ class PreferencesManager {
         dateFormatter.dateFormat = "HH:mm:ss.SSS"
         let timestamp = dateFormatter.string(from: Date())
         
-        if name == Notifications.apiKeyChanged {
+        if name == NotificationNames.apiKeyChanged {
             Logger.debug("POSTING apiKeyChanged notification at \(timestamp)", category: .app)
         }
         

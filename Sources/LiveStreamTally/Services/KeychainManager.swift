@@ -16,7 +16,7 @@ import Security
 class KeychainManager {
     static let shared = KeychainManager()
     
-    private let service = "com.livestreamtally.app"
+    private let service = "com.richardbolt.livestreamtally"
     private let account = "youtube_api_key"
     
     func saveAPIKey(_ apiKey: String) -> Bool {
