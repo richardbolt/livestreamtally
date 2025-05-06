@@ -6,9 +6,11 @@
 build/
 DerivedData/
 *.app
+*-signed.zip
 dist/
 
 ## Various settings
+.env
 *.pbxuser
 !default.pbxuser
 *.mode1v3
