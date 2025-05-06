@@ -57,13 +57,45 @@ For more details about the app, visit [Live Stream Tally website](https://www.ri
 
 1. Install the NDI Runtime from [NDI.tv](https://www.ndi.tv/tools/)
 2. Get a YouTube Data API key from the [Google Cloud Console](https://console.cloud.google.com/)
-3. Find your YouTube Channel ID
-    1. You can use a Channel Handle
-4. Build and run the app:
+3. Find your YouTube Channel ID or Handle
+4. Build and run the app for development:
    ```bash
    make
    make run
    ```
+   *(Note: This creates an ad-hoc signed application suitable for local development but may be blocked by Gatekeeper on other systems.)*
+
+## Building for Distribution
+
+To create a distributable version of the application signed with an Apple Developer ID and notarized by Apple (required for smooth installation on other macOS systems), follow these steps:
+
+**Prerequisites:**
+
+1.  **Apple Developer Account:** You need an active Apple Developer Program membership.
+2.  **Developer ID Certificate:** Create and install a "Developer ID Application" certificate from the Apple Developer portal into your **login** Keychain.
+3.  **Intermediate Certificates:** Ensure the latest "Apple Worldwide Developer Relations Certification Authority" and "Developer ID Certification Authority" intermediate certificates are installed in your **login** Keychain. Download them from the [Apple PKI page](https://www.apple.com/certificateauthority/) if needed.
+4.  **Notarization Credentials:** Set up credentials for `notarytool`. The recommended method is using an App Store Connect API key:
+    ```bash
+    # Replace placeholders with your actual values
+    xcrun notarytool store-credentials "YourProfileNameForNotary" \
+                       --key "/path/to/your/AuthKey_XXXXXX.p8" \
+                       --key-id "YOUR_KEY_ID" \
+                       --issuer "YOUR_ISSUER_ID"
+    ```
+    *(See `xcrun notarytool store-credentials --help` for details. You can also use an app-specific password.)*
+
+**Build Command:**
+
+Run the `make package` command, providing your signing identity and notary profile name as environment variables:
+
+```bash
+SIGN_IDENTITY="Developer ID Application: Your Name (XXXXXXXXXX)" \
+NOTARY_PROFILE="YourProfileNameForNotary" \
+make package
+```
+*(Replace the `SIGN_IDENTITY` and `NOTARY_PROFILE` values with your actual certificate name and the notarytool keychain profile name you created.)*
+
+This command will build, sign, notarize, staple, and package the application into a distributable DMG file located in the `dist/` directory. The DMG filename will include the application version (e.g., `dist/Live Stream Tally 1.0.0.dmg`).
 
 ## Development
 
@@ -76,12 +108,14 @@ This project uses Swift Package Manager for dependency management. To work on th
 
 Available make commands:
 ```bash
-make          # Clean and build the app
+make          # Clean and build the app (ad-hoc signed)
 make clean    # Remove build artifacts
-make build    # Build the app and create app bundle
-make run      # Run the app
-make sign     # Sign the app (use SIGN_IDENTITY env var to specify identity)
-make package  # Create a distributable zip package
+make build    # Build the app and create app bundle (ad-hoc signed)
+make run      # Run the app (ad-hoc signed)
+make sign     # Sign the app with a specific Developer ID (SIGN_IDENTITY required)
+make notarize # Sign and notarize the app (SIGN_IDENTITY and NOTARY_PROFILE required)
+make staple   # Sign, notarize, and staple the ticket (SIGN_IDENTITY and NOTARY_PROFILE required)
+make package  # Create a distributable, notarized DMG (SIGN_IDENTITY and NOTARY_PROFILE required)
 make test     # Run Swift tests
 make logs     # Stream debug+ level logs from the app
 make help     # Display help information

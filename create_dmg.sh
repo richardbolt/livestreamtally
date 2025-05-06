@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -e
 
-APP_NAME="LiveStreamTally"
-VOL_NAME="Live Stream Tally"
+# Use APP_NAME from environment or default to "Live Stream Tally"
+APP_NAME="${APP_NAME:-Live Stream Tally}"
+
+VOL_NAME="${APP_NAME}" # Use APP_NAME for volume name too, or keep separate if desired
 DMG_FINAL="dist/${APP_NAME}.dmg"
 SRC_APP="${APP_NAME}.app"
 TEMP_DIR="./tmp_dmg"

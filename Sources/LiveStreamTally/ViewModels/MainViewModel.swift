@@ -140,7 +140,7 @@ final class MainViewModel: ObservableObject {
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleApiKeyChanged),
-            name: PreferencesManager.Notifications.apiKeyChanged,
+            name: PreferencesManager.NotificationNames.apiKeyChanged,
             object: nil
         )
         
@@ -148,7 +148,7 @@ final class MainViewModel: ObservableObject {
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleChannelChanged),
-            name: PreferencesManager.Notifications.channelChanged,
+            name: PreferencesManager.NotificationNames.channelChanged,
             object: nil
         )
         
@@ -156,7 +156,7 @@ final class MainViewModel: ObservableObject {
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleIntervalChanged),
-            name: PreferencesManager.Notifications.intervalChanged,
+            name: PreferencesManager.NotificationNames.intervalChanged,
             object: nil
         )
     }

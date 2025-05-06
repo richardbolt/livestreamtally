@@ -17,13 +17,13 @@
     <!-- App Groups (if you're sharing UserDefaults/Keychain between targets) -->
     <key>com.apple.security.application-groups</key>
     <array>
-        <string>com.livestreamtally.app</string>
+        <string>$(AppIdentifierPrefix)com.richardbolt.livestreamtally</string>
     </array>
 
     <!-- Keychain sharing: must be "com.apple.security.keychain-access-groups" -->
     <key>com.apple.security.keychain-access-groups</key>
     <array>
-        <string>com.livestreamtally.app</string>
+        <string>$(AppIdentifierPrefix)com.richardbolt.livestreamtally</string>
     </array>
 
     <!-- Allow loading third-party dylibs under Hardened Runtime -->

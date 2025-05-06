@@ -3,9 +3,11 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleIdentifier</key>
-    <string>com.livestreamtally.app</string>
+    <string>com.richardbolt.livestreamtally</string>
     <key>CFBundleName</key>
     <string>Live Stream Tally</string>
+    <key>CFBundleExecutable</key>
+    <string>LiveStreamTally</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>

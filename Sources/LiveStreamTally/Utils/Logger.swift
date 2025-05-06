@@ -11,6 +11,7 @@
 
 import Foundation
 import os
+import OSLog
 
 enum LogCategory: String {
     case main = "MainViewModel"
@@ -20,8 +21,8 @@ enum LogCategory: String {
 }
 
 /// A centralized logging utility for the application
-enum Logger {
-    private static let subsystem = "com.livestreamtally.app"
+struct Logger {
+    private static let subsystem = "com.richardbolt.livestreamtally"
     
     static func logger(for category: LogCategory) -> OSLog {
         return OSLog(subsystem: subsystem, category: category.rawValue)
