@@ -78,15 +78,18 @@ package: staple
 	@echo "Creating distributable package..."
 	mkdir -p dist
 	@echo "Creating DMG..."
+	export APP_NAME="$(APP_NAME)"; \
 	./create_dmg.sh
-	@echo "Package created at dist/$(APP_NAME).dmg"
+	@echo "Package created in dist/ directory (named with version)"
 
 # Create a DMG package (Notarized)
 package-dmg: staple
 	@echo "Creating DMG package..."
 	mkdir -p dist
+	@echo "Creating DMG..."
+	export APP_NAME="$(APP_NAME)"; \
 	./create_dmg.sh
-	@echo "DMG created at dist/$(APP_NAME).dmg"
+	@echo "DMG created in dist/ directory (named with version)"
 
 # Create a distributable ZIP package (legacy, signed but not notarized/stapled)
 package-zip: sign
