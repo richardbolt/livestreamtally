@@ -42,12 +42,35 @@ struct SettingsView: View {
     var body: some View {
         VStack(spacing: 0) {
             Form {
+                // Display Options Section
                 Section {
-                    VStack(alignment: .leading, spacing: 16) {
-                        VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Show Date/Time", isOn: Binding(
+                            get: { PreferencesManager.shared.getShowDateTime() },
+                            set: { PreferencesManager.shared.updateShowDateTime($0) }
+                        ))
+                        .help("When enabled, shows the current date and time")
+                        
+                        Toggle("Show Viewer Count", isOn: Binding(
+                            get: { PreferencesManager.shared.getShowViewerCount() },
+                            set: { PreferencesManager.shared.updateShowViewerCount($0) }
+                        ))
+                        .help("When enabled, shows the current viewer count when stream is live")
+                    }
+                } header: {
+                    Text("Display Options")
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.primary)
+                }
+                
+                // API Configuration Section
+                Section {
+                    VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 4) {
                             HStack {
                                 Text("API Key")
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(.primary)
                                 Spacer()
                                 Button(action: {
                                     NSWorkspace.shared.open(URL(string: "https://console.cloud.google.com/apis/credentials")!)
@@ -61,7 +84,7 @@ struct SettingsView: View {
                             
                             SecureField("", text: $apiKey)
                                 .textFieldStyle(.plain)
-                                .padding(8)
+                                .padding(6)
                                 .background(Color(NSColor.textBackgroundColor))
                                 .cornerRadius(6)
                                 .help("""
@@ -78,18 +101,16 @@ struct SettingsView: View {
                                 Text(error)
                                     .font(.caption)
                                     .foregroundColor(.red)
-                                    .padding(.top, 4)
                             }
                             
                             Link("How to get a YouTube API key", destination: URL(string: "https://developers.google.com/youtube/v3/getting-started")!)
                                 .font(.caption)
-                                .padding(.top, 2)
                         }
                         
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 4) {
                             HStack {
                                 Text("Channel ID or Handle")
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(.primary)
                                 Spacer()
                                 Button(action: {
                                     NSWorkspace.shared.open(URL(string: "https://www.youtube.com/account_advanced")!)
@@ -103,106 +124,92 @@ struct SettingsView: View {
                             
                             TextField("", text: $channelId)
                                 .textFieldStyle(.plain)
-                                .padding(8)
+                                .padding(6)
                                 .background(Color(NSColor.textBackgroundColor))
                                 .cornerRadius(6)
-                                .help("Your YouTube channel ID from your channel's advanced settings page")
                             
                             if let error = viewModel.channelError {
                                 Text(error)
                                     .font(.caption)
                                     .foregroundColor(.red)
-                                    .padding(.top, 4)
                             }
                             
                             Link("How to find your YouTube Channel ID", destination: URL(string: "https://support.google.com/youtube/answer/3250431")!)
                                 .font(.caption)
-                                .padding(.top, 2)
                         }
+                        
+                        HStack {
+                            Image(systemName: "lock.fill")
+                                .foregroundColor(.secondary)
+                            Text("Keys are stored securely in the keychain")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.top, 4)
                     }
-                    .padding(.vertical, 8)
                 } header: {
                     Text("YouTube API Configuration")
                         .font(.title3)
                         .fontWeight(.semibold)
                         .foregroundStyle(.primary)
-                        .padding(.bottom, 8)
                 }
                 
+                // Polling Intervals Section
                 Section {
-                    VStack(alignment: .leading, spacing: 16) {
-                        // Live Check Interval (more compact version)
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Text("When Live (seconds)")
-                                    .foregroundStyle(.secondary)
-                                Spacer()
-                                Text("\(Int(liveCheckInterval))")
-                                    .foregroundStyle(.secondary)
-                            }
-                            
+                    VStack(alignment: .leading, spacing: 12) {
+                        // Live Check Interval
+                        HStack {
+                            Text("Live Updates (seconds)")
+                                .foregroundStyle(.primary)
+                                .frame(width: 175, alignment: .leading)
                             Slider(value: $liveCheckInterval, in: 5...300, step: 5)
                                 .onChange(of: liveCheckInterval) { newValue in
                                     viewModel.liveCheckInterval = newValue
                                 }
+                            Text("\(Int(liveCheckInterval))")
+                                .foregroundStyle(.secondary)
+                                .frame(width: 30, alignment: .trailing)
                         }
                         
-                        // Not Live Check Interval (more compact version)
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Text("When Not Live (seconds)")
-                                    .foregroundStyle(.secondary)
-                                Spacer()
-                                Text("\(Int(notLiveCheckInterval))")
-                                    .foregroundStyle(.secondary)
-                            }
-                            
+                        // Not Live Check Interval
+                        HStack {
+                            Text("Stream Detection (seconds)")
+                                .foregroundStyle(.primary)
+                                .frame(width: 175, alignment: .leading)
                             Slider(value: $notLiveCheckInterval, in: 5...300, step: 5)
                                 .onChange(of: notLiveCheckInterval) { newValue in
                                     viewModel.notLiveCheckInterval = newValue
                                 }
+                            Text("\(Int(notLiveCheckInterval))")
+                                .foregroundStyle(.secondary)
+                                .frame(width: 30, alignment: .trailing)
                         }
                         
-                        // Description for both intervals
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("YouTube Data API Quota Information:")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .fontWeight(.medium)
-                            
-                            Text("• Each check when live uses 1 quota unit")
+                        // Compact quota information
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("API Quota: 1 unit (live) • 2 units (stream detection) • 10,000/day limit")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             
-                            Text("• Each check when not live uses 2 quota units")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            
-                            Text("• Default quota limit is 10,000 units per day")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            
-                            Text("Lower values mean more frequent checks but higher quota usage.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .padding(.top, 2)
-                                
-                            Link("More about YouTube API quota costs", destination: URL(string: "https://developers.google.com/youtube/v3/determine_quota_cost")!)
-                                .font(.caption)
-                                .padding(.top, 4)
+                            HStack {
+                                Text("Lower values = more frequent checks but higher quota usage.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Link("Learn more", destination: URL(string: "https://developers.google.com/youtube/v3/determine_quota_cost")!)
+                                    .font(.caption)
+                            }
                         }
+                        .padding(.top, 4)
                     }
-                    .padding(.vertical, 8)
                 } header: {
                     Text("Polling Intervals")
                         .font(.title3)
                         .fontWeight(.semibold)
                         .foregroundStyle(.primary)
-                        .padding(.bottom, 8)
                 }
             }
             .formStyle(.grouped)
-            .scrollDisabled(false)  // Keep scrolling enabled to handle variable content height
             
             // Status indicator when saving
             if isProcessing || viewModel.isProcessing {
@@ -220,7 +227,7 @@ struct SettingsView: View {
                 .background(Color(NSColor.controlBackgroundColor))
             }
         }
-        .frame(width: 400, height: 610)
+        .frame(width: 400, height: 565)
         .preferredColorScheme(.dark)
         .onChange(of: channelId) { _ in saveSettings() }
         .onChange(of: apiKey) { _ in saveSettings() }

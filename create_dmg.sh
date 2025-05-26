@@ -4,8 +4,11 @@ set -e
 # Use APP_NAME from environment or default to "Live Stream Tally"
 APP_NAME="${APP_NAME:-Live Stream Tally}"
 
+# Read version from Info.plist (assuming it's in the current directory where make is run)
+APP_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" Info.plist)
+
 VOL_NAME="${APP_NAME}" # Use APP_NAME for volume name too, or keep separate if desired
-DMG_FINAL="dist/${APP_NAME}.dmg"
+DMG_FINAL="dist/${APP_NAME} ${APP_VERSION}.dmg"
 SRC_APP="${APP_NAME}.app"
 TEMP_DIR="./tmp_dmg"
 

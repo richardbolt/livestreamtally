@@ -40,9 +40,9 @@ class SettingsViewModel: ObservableObject {
     
     // Add validation methods for the intervals
     func validateIntervals() -> Bool {
-        // Ensure intervals are within reasonable bounds (10-300 seconds)
-        let isLiveIntervalValid = liveCheckInterval >= 10 && liveCheckInterval <= 300
-        let isNotLiveIntervalValid = notLiveCheckInterval >= 10 && notLiveCheckInterval <= 300
+        // Ensure intervals are within reasonable bounds (5-300 seconds)
+        let isLiveIntervalValid = liveCheckInterval >= 5 && liveCheckInterval <= 300
+        let isNotLiveIntervalValid = notLiveCheckInterval >= 5 && notLiveCheckInterval <= 300
         
         return isLiveIntervalValid && isNotLiveIntervalValid
     }

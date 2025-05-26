@@ -87,13 +87,15 @@ struct ContentView: View {
                         .font(.system(size: geometry.size.width * 0.15, weight: .bold))
                         .foregroundColor(viewModel.isLive ? .red : .white)
                 }
-                .padding(.vertical, geometry.size.height * 0.03)
+                .padding(.vertical, geometry.size.height * 0.01)
                 
-                // Time display
-                Text(viewModel.currentTime)
-                    .font(.system(size: geometry.size.width * 0.08, weight: .medium, design: .monospaced))
-                    .foregroundColor(viewModel.isLive ? .red : .gray)
-                    .padding(.bottom, geometry.size.height * 0.03)
+                // Time display (only if enabled)
+                if PreferencesManager.shared.getShowDateTime() {
+                    Text(viewModel.currentTime)
+                        .font(.system(size: geometry.size.width * 0.07, weight: .medium, design: .monospaced))
+                        .foregroundColor(viewModel.isLive ? .red : .gray)
+                        .padding(.bottom, geometry.size.height * 0.01)
+                }
                 
                 // Livestream Title display
                 Text(viewModel.title)
@@ -103,8 +105,8 @@ struct ContentView: View {
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
                 
-                // Livestream current viewer count
-                if viewModel.isLive {
+                // Livestream current viewer count (only if enabled and live)
+                if viewModel.isLive && PreferencesManager.shared.getShowViewerCount() {
                     Text("Viewers: \(viewModel.viewerCount)")
                         .font(.system(size: geometry.size.width * 0.04))
                         .foregroundColor(.gray)
