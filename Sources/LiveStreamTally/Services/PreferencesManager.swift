@@ -25,6 +25,8 @@ class PreferencesManager {
         static let uploadPlaylistId = "youtube_upload_playlist_id"
         static let liveCheckInterval = "youtube_live_check_interval"
         static let notLiveCheckInterval = "youtube_not_live_check_interval"
+        static let showViewerCount = "show_viewer_count"
+        static let showDateTime = "show_date_time"
     }
     
     // MARK: - Notification Names
@@ -43,6 +45,8 @@ class PreferencesManager {
     @Published private(set) var uploadPlaylistId: String
     @Published private(set) var liveCheckInterval: TimeInterval
     @Published private(set) var notLiveCheckInterval: TimeInterval
+    @Published private(set) var showViewerCount: Bool
+    @Published private(set) var showDateTime: Bool
     
     // MARK: - Private Properties
     
@@ -55,8 +59,10 @@ class PreferencesManager {
         channelId = defaults.string(forKey: Keys.channelId) ?? ""
         cachedChannelId = defaults.string(forKey: Keys.cachedChannelId) ?? ""
         uploadPlaylistId = defaults.string(forKey: Keys.uploadPlaylistId) ?? ""
-        liveCheckInterval = defaults.double(forKey: Keys.liveCheckInterval).nonZero ?? 30.0
-        notLiveCheckInterval = defaults.double(forKey: Keys.notLiveCheckInterval).nonZero ?? 60.0
+        liveCheckInterval = defaults.double(forKey: Keys.liveCheckInterval).nonZero ?? 5.0
+        notLiveCheckInterval = defaults.double(forKey: Keys.notLiveCheckInterval).nonZero ?? 20.0
+        showDateTime = defaults.bool(forKey: Keys.showDateTime, defaultValue: true)  // default to true
+        showViewerCount = defaults.bool(forKey: Keys.showViewerCount, defaultValue: true)  // default to true
         
         // Set up observation for external changes to UserDefaults
         setupObservations()
@@ -158,6 +164,36 @@ class PreferencesManager {
         postNotification(name: NotificationNames.intervalChanged)
     }
     
+    // Viewer count display methods
+    func getShowViewerCount() -> Bool {
+        return showViewerCount
+    }
+    
+    func updateShowViewerCount(_ show: Bool) {
+        Logger.debug("Updating show viewer count to: \(show)", category: .app)
+        
+        // Update UserDefaults
+        defaults.set(show, forKey: Keys.showViewerCount)
+        
+        // Update published property
+        showViewerCount = show
+    }
+    
+    // DateTime display methods
+    func getShowDateTime() -> Bool {
+        return showDateTime
+    }
+    
+    func updateShowDateTime(_ show: Bool) {
+        Logger.debug("Updating show date time to: \(show)", category: .app)
+        
+        // Update UserDefaults
+        defaults.set(show, forKey: Keys.showDateTime)
+        
+        // Update published property
+        showDateTime = show
+    }
+    
     // MARK: - Private Methods
     
     private func setupObservations() {
@@ -187,12 +223,12 @@ class PreferencesManager {
             uploadPlaylistId = newUploadPlaylistId
         }
         
-        let newLiveCheckInterval = defaults.double(forKey: Keys.liveCheckInterval).nonZero ?? 30.0
+        let newLiveCheckInterval = defaults.double(forKey: Keys.liveCheckInterval).nonZero ?? 5.0
         if newLiveCheckInterval != liveCheckInterval {
             liveCheckInterval = newLiveCheckInterval
         }
         
-        let newNotLiveCheckInterval = defaults.double(forKey: Keys.notLiveCheckInterval).nonZero ?? 60.0
+        let newNotLiveCheckInterval = defaults.double(forKey: Keys.notLiveCheckInterval).nonZero ?? 20.0
         if newNotLiveCheckInterval != notLiveCheckInterval {
             notLiveCheckInterval = newNotLiveCheckInterval
         }
@@ -221,5 +257,15 @@ extension Double {
     /// Useful for UserDefaults where 0.0 is returned for missing keys.
     var nonZero: Double? {
         return self == 0.0 ? nil : self
+    }
+}
+
+// MARK: - UserDefaults Extension
+extension UserDefaults {
+    func bool(forKey key: String, defaultValue: Bool) -> Bool {
+        if object(forKey: key) == nil {
+            return defaultValue
+        }
+        return bool(forKey: key)
     }
 } 
