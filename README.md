@@ -3,7 +3,6 @@
 [![Swift 6.1](https://img.shields.io/badge/Swift-6.1-orange?style=flat&logo=swift)](https://swift.org)
 [![macOS](https://img.shields.io/badge/macOS-13.0+-lightgrey?style=flat&logo=apple)](https://www.apple.com/macos/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Built with Cursor](https://img.shields.io/badge/Built%20with-Cursor-blue?style=flat&logo=cursor&logoColor=white)](https://cursor.com/)
 [![Website](https://img.shields.io/badge/Website-Live%20Stream%20Tally-blue?style=flat)](https://www.richardbolt.com/live-stream-tally/)
 
 NDI-ready on-air status for any YouTube live streaming channel. Live Stream Tally connects to the YouTube Data API to check a YouTube channel's live status and emits an NDI tally signal.
@@ -102,7 +101,7 @@ This command will build, sign, notarize, staple, and package the application int
 This project uses Swift Package Manager for dependency management. To work on the project:
 
 1. Clone the repository
-2. Open the project in Xcode or your preferred editor (like Cursor in which this app was built!)
+2. Open the project in Xcode or your preferred editor
 3. Run `make` or `make build` to build the project
 4. Run `OS_ACTIVITY_MODE=debug make run` to run the app in debug mode
 
