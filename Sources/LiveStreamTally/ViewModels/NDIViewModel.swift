@@ -70,15 +70,19 @@ class NDIViewModel: ObservableObject {
         
         Logger.info("Starting NDI streaming", category: .app)
         
-        broadcaster.start(name: "Live Stream Tally", viewModel: mainViewModel)
+        Task {
+            await broadcaster.start(name: "Live Stream Tally", viewModel: mainViewModel)
+        }
         isStreaming = true
-        
+
         // Use Combine publisher for more efficient frame sending
         framePublisher = Timer.publish(every: 1.0/30.0, on: .main, in: .default)
             .autoconnect()
             .sink { [weak self] _ in
                 guard let self = self else { return }
-                self.broadcaster.sendFrame()
+                Task {
+                    await self.broadcaster.sendFrame()
+                }
             }
         
         // Send initial tally data when starting stream
@@ -96,8 +100,10 @@ class NDIViewModel: ObservableObject {
         framePublisher = nil
         
         // Stop the broadcaster
-        broadcaster.stop()
-        
+        Task {
+            await broadcaster.stop()
+        }
+
         // Update state
         isStreaming = false
     }

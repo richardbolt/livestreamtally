@@ -50,13 +50,15 @@ final class MainViewModel: ObservableObject {
     // @AppStorage("youtube_channel_id") private var channelId = ""
     // @AppStorage("youtube_channel_id_cached") private var cachedChannelId = ""
     // @AppStorage("youtube_upload_playlist_id") private var uploadPlaylistId = ""
-    
+
     // Add properties that will be updated from PreferencesManager
     private var channelId: String = ""
     private var cachedChannelId: String = ""
     private var uploadPlaylistId: String = ""
-    
-    private var youtubeService: YouTubeService?
+
+    private var youtubeService: (any YouTubeServiceProtocol)?
+    private let preferences: any PreferencesManagerProtocol
+    private let clock: any ClockProtocol
     private var timer: Timer?
     private var timePublisher: AnyCancellable?
     
@@ -70,36 +72,55 @@ final class MainViewModel: ObservableObject {
     // Add cancellables for Combine subscriptions
     private var cancellables = Set<AnyCancellable>()
     
-    init(apiKey: String? = nil) {
-        Logger.debug("MainViewModel.init() called", category: .main)
-        // Initialize with current values from PreferencesManager
-        self.channelId = PreferencesManager.shared.getChannelId()
-        self.cachedChannelId = PreferencesManager.shared.cachedChannelId
-        self.uploadPlaylistId = PreferencesManager.shared.uploadPlaylistId
-        
-        // Initialize with provided API key or from PreferencesManager
-        let keyToUse = apiKey ?? PreferencesManager.shared.getApiKey()
-        
+    /// Primary initializer with dependency injection for testing
+    init(
+        youtubeService: (any YouTubeServiceProtocol)? = nil,
+        preferences: any PreferencesManagerProtocol,
+        clock: any ClockProtocol = SystemClock()
+    ) {
+        Logger.debug("MainViewModel.init() called with injected dependencies", category: .main)
+
+        self.youtubeService = youtubeService
+        self.preferences = preferences
+        self.clock = clock
+
+        // Initialize with current values from preferences
+        self.channelId = preferences.getChannelId()
+        self.cachedChannelId = preferences.cachedChannelId
+        self.uploadPlaylistId = preferences.uploadPlaylistId
+
+        // Setup subscriptions to preferences publishers
+        setupPreferenceSubscriptions()
+
+        // Register for notifications
+        registerForNotifications()
+    }
+
+    /// Convenience initializer for production use
+    convenience init(apiKey: String? = nil) {
+        Logger.debug("MainViewModel.init() called (convenience)", category: .main)
+
+        let prefs = PreferencesManager.shared
+        let keyToUse = apiKey ?? prefs.getApiKey()
+
+        var service: (any YouTubeServiceProtocol)? = nil
         if let keyToUse = keyToUse, !keyToUse.isEmpty {
             do {
                 // Use cached service if it exists, otherwise create a new one
                 if MainViewModel.cachedYouTubeService == nil {
                     MainViewModel.cachedYouTubeService = try YouTubeService(apiKey: keyToUse)
                 }
-                
-                // Use the cached service
-                youtubeService = MainViewModel.cachedYouTubeService
-                self.error = nil
-            } catch let serviceError {
-                self.error = "Failed to initialize YouTube service: \(serviceError.localizedDescription)"
+                service = MainViewModel.cachedYouTubeService
+            } catch {
+                Logger.error("Failed to initialize YouTube service: \(error.localizedDescription)", category: .main)
             }
         }
-        
-        // Setup subscriptions to PreferencesManager publishers
-        setupPreferenceSubscriptions()
-        
-        // Register for notifications
-        registerForNotifications()
+
+        self.init(
+            youtubeService: service,
+            preferences: prefs,
+            clock: SystemClock()
+        )
     }
     
     deinit {
@@ -108,24 +129,30 @@ final class MainViewModel: ObservableObject {
     }
     
     private func setupPreferenceSubscriptions() {
+        // Only subscribe if preferences is the real PreferencesManager (has publishers)
+        // Test doubles don't need subscriptions
+        guard let prefs = preferences as? PreferencesManager else {
+            return
+        }
+
         // Subscribe to channelId changes
-        PreferencesManager.shared.$channelId
+        prefs.$channelId
             .receive(on: RunLoop.main)
             .sink { [weak self] newValue in
                 self?.channelId = newValue
             }
             .store(in: &cancellables)
-        
+
         // Subscribe to cachedChannelId changes
-        PreferencesManager.shared.$cachedChannelId
+        prefs.$cachedChannelId
             .receive(on: RunLoop.main)
             .sink { [weak self] newValue in
                 self?.cachedChannelId = newValue
             }
             .store(in: &cancellables)
-        
+
         // Subscribe to uploadPlaylistId changes
-        PreferencesManager.shared.$uploadPlaylistId
+        prefs.$uploadPlaylistId
             .receive(on: RunLoop.main)
             .sink { [weak self] newValue in
                 self?.uploadPlaylistId = newValue
@@ -199,7 +226,7 @@ final class MainViewModel: ObservableObject {
     }
     
     func getAPIKey() -> String? {
-        return PreferencesManager.shared.getApiKey()
+        return preferences.getApiKey()
     }
     
     private func updateTimerInterval() {
@@ -209,8 +236,8 @@ final class MainViewModel: ObservableObject {
         timer?.invalidate()
         
         // Get current intervals from preferences
-        let liveInterval = PreferencesManager.shared.getLiveCheckInterval()
-        let notLiveInterval = PreferencesManager.shared.getNotLiveCheckInterval()
+        let liveInterval = preferences.getLiveCheckInterval()
+        let notLiveInterval = preferences.getNotLiveCheckInterval()
         
         // Create new timer with appropriate interval
         timer = Timer.scheduledTimer(withTimeInterval: isLive ? liveInterval : notLiveInterval, repeats: true) { [weak self] _ in
@@ -244,7 +271,7 @@ final class MainViewModel: ObservableObject {
         }
         
         // Get initial interval from preferences
-        let initialInterval = PreferencesManager.shared.getNotLiveCheckInterval()
+        let initialInterval = preferences.getNotLiveCheckInterval()
         
         // Then start periodic checks with initial interval
         timer = Timer.scheduledTimer(withTimeInterval: initialInterval, repeats: true) { [weak self] _ in
@@ -310,8 +337,8 @@ final class MainViewModel: ObservableObject {
                 // Resolve the channel identifier
                 let (resolvedChannelId, resolvedPlaylistId) = try await service.resolveChannelIdentifier(currentChannelId)
                 
-                // Update resolved info in PreferencesManager
-                PreferencesManager.shared.setResolvedChannelInfo(
+                // Update resolved info in preferences
+                preferences.setResolvedChannelInfo(
                     channelId: resolvedChannelId,
                     playlistId: resolvedPlaylistId
                 )
@@ -354,17 +381,17 @@ final class MainViewModel: ObservableObject {
     }
     
     func updateApiKey(_ newApiKey: String) {
-        if PreferencesManager.shared.updateApiKey(newApiKey) {
+        if preferences.updateApiKey(newApiKey) {
             // The notification handler will reinitialize the service
             error = nil
         } else {
             error = "Failed to save API key to Keychain"
         }
     }
-    
+
     func updateChannelId(_ newChannelId: String) {
-        // Use PreferencesManager to update channel ID
+        // Use preferences to update channel ID
         // This will trigger notifications that we observe
-        PreferencesManager.shared.updateChannelId(newChannelId)
+        preferences.updateChannelId(newChannelId)
     }
 } 

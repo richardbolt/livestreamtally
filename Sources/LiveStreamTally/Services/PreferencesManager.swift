@@ -14,7 +14,7 @@ import Combine
 import os
 
 @MainActor
-class PreferencesManager {
+class PreferencesManager: PreferencesManagerProtocol {
     static let shared = PreferencesManager()
     
     // MARK: - Preference Keys (Static Constants)

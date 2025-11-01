@@ -34,7 +34,7 @@ enum YouTubeError: Error {
 
 // Using @MainActor to ensure isolation for Swift 6.1 compatibility
 @MainActor
-class YouTubeService {
+class YouTubeService: YouTubeServiceProtocol {
     private let service: GTLRYouTubeService
     private var currentLiveVideoId: String?
     

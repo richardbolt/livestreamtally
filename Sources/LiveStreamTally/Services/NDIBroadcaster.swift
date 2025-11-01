@@ -15,7 +15,7 @@ import os
 import NDIWrapper
 import SwiftUI
 
-class NDIBroadcaster: @unchecked Sendable {
+class NDIBroadcaster: NDIBroadcasterProtocol, @unchecked Sendable {
     private var sender: NDIlib_send_instance_t?
     private var isInitialized = false
     private var viewToCapture: NSView?
@@ -47,7 +47,7 @@ class NDIBroadcaster: @unchecked Sendable {
     }
     
     @MainActor
-    func start(name: String, viewModel: MainViewModel) {
+    func start(name: String, viewModel: MainViewModel) async {
         guard isInitialized else {
             Logger.error("Cannot start NDI - not initialized", category: .app)
             return
@@ -105,7 +105,7 @@ class NDIBroadcaster: @unchecked Sendable {
     }
     
     @MainActor
-    func stop() {
+    func stop() async {
         viewToCapture = nil
         viewModel = nil
         if let sender = sender {
@@ -141,7 +141,7 @@ class NDIBroadcaster: @unchecked Sendable {
     }
     
     @MainActor
-    func sendFrame() {
+    func sendFrame() async {
         guard let sender = sender,
               let viewToCapture = viewToCapture else {
             Logger.error("No NDI sender or view available", category: .app)
