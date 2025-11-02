@@ -82,33 +82,4 @@ class SettingsViewModel: ObservableObject {
         isProcessing = false
     }
     
-    private func resolveChannelId(_ channelId: String) async {
-        guard let service = youtubeService else {
-            channelError = "YouTube service not initialized"
-            return
-        }
-        
-        do {
-            Logger.debug("Resolving channel ID: \(channelId)", category: .settings)
-            
-            // Try to resolve the channel ID
-            let (resolvedId, playlistId) = try await service.resolveChannelIdentifier(channelId)
-            
-            Logger.debug("Successfully resolved channel ID: \(channelId) to \(resolvedId) with playlist \(playlistId)", category: .settings)
-            
-            // Update the resolved info in PreferencesManager
-            PreferencesManager.shared.setResolvedChannelInfo(
-                channelId: resolvedId,
-                playlistId: playlistId
-            )
-        } catch {
-            Logger.error("Failed to resolve channel: \(error.localizedDescription)", category: .settings)
-            
-            // Handle resolution error
-            channelError = "Failed to resolve channel: \(error.localizedDescription)"
-            
-            // Clear any cached values
-            PreferencesManager.shared.clearChannelCache()
-        }
-    }
-} 
+}

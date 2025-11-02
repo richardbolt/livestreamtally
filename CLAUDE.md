@@ -59,8 +59,9 @@ The app uses a centralized state management approach:
 3. **MainViewModel** (shared instance):
    - Observes PreferencesManager notifications to react to configuration changes
    - Uses Combine subscriptions to sync with PreferencesManager published properties
-   - Maintains cached `YouTubeService` instance (static) to prevent recreation
+   - Creates `YouTubeService` instance per ViewModel (service creation is fast: ~0.03ms)
    - Implements dynamic polling intervals (faster when live, slower when offline)
+   - Consolidates all app state with `@Published` properties directly in the ViewModel
 
 ### NDI Integration
 - **NDIBroadcaster**: C/Swift interop with NDI SDK via `NDIWrapper` system library
@@ -172,7 +173,7 @@ Tests/LiveStreamTallyTests/
 ## Logging
 - Custom Logger utility wraps swift-log
 - Subsystem: `com.richardbolt.livestreamtally`
-- Categories: `.app`, `.youtube`, `.main`, `.ndi`
+- Categories: `.app`, `.youtube`, `.main`, `.settings`
 - View logs: `make logs` or `log stream --predicate 'subsystem == "com.richardbolt.livestreamtally"' --level debug`
 
 ## Known Considerations

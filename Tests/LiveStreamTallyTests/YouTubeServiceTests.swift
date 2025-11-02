@@ -32,6 +32,34 @@ struct YouTubeServiceTests {
         #expect(Bool(true), "Should be able to create YouTubeService with valid API key")
     }
 
+    // MARK: - Performance Tests
+
+    @Test("YouTubeService creation performance")
+    @MainActor
+    func measureServiceCreationTime() async throws {
+        let iterations = 100
+        var totalDuration: TimeInterval = 0
+
+        for _ in 0..<iterations {
+            let start = Date()
+            _ = try await YouTubeService(apiKey: testApiKey)
+            totalDuration += Date().timeIntervalSince(start)
+        }
+
+        let averageDuration = totalDuration / Double(iterations)
+        let averageMs = averageDuration * 1000
+
+        print("=== YouTubeService Creation Performance ===")
+        print("Iterations: \(iterations)")
+        print("Total time: \(String(format: "%.2f", totalDuration * 1000))ms")
+        print("Average creation time: \(String(format: "%.4f", averageMs))ms")
+        print("===========================================")
+
+        // Service creation should be fast (< 100ms per creation)
+        // If this test fails, caching might be beneficial
+        #expect(averageDuration < 0.1, "Service creation should be fast (< 100ms average)")
+    }
+
     // MARK: - Cache Behavior Tests
 
     @Test("clearCache clears cached video ID")
