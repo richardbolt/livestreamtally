@@ -50,21 +50,22 @@ class YouTubeService: YouTubeServiceProtocol {
     
     private func executeQuery<T: GTLRObject>(_ query: GTLRQuery) async throws -> T {
         Logger.debug("Calling YouTube API: \(String(describing: type(of: query)))", category: .youtube)
-        
+
         return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<T, Error>) in
             // Use a local variable to capture service and avoid self capture
             let localService = service
             localService.executeQuery(query) { (ticket: GTLRServiceTicket, response: Any?, error: Error?) in
                 if let error = error {
-                    continuation.resume(throwing: error)
+                    let mappedError = self.mapError(error)
+                    continuation.resume(throwing: mappedError)
                     return
                 }
-                
+
                 guard let response = response as? T else {
                     continuation.resume(throwing: YouTubeError.unknownError)
                     return
                 }
-                
+
                 // Make a properly isolated copy of the response by creating a task
                 // This is necessary to avoid data races when passing data across actor boundaries
                 Task { @MainActor in

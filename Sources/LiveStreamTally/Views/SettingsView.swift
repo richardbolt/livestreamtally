@@ -26,6 +26,9 @@ struct SettingsView: View {
     
     // Track if we're currently processing
     @State private var isProcessing = false
+
+    // Track debounce task for API key and channel ID
+    @State private var saveTask: Task<Void, Never>?
     
     init() {
         // Initialize form fields from PreferencesManager
@@ -229,33 +232,69 @@ struct SettingsView: View {
         }
         .frame(width: 400, height: 565)
         .preferredColorScheme(.dark)
-        .onChange(of: channelId) { _ in saveSettings() }
-        .onChange(of: apiKey) { _ in saveSettings() }
+        .onChange(of: channelId) { _ in debouncedSave() }
+        .onChange(of: apiKey) { _ in debouncedSave() }
         .onChange(of: liveCheckInterval) { _ in saveSettings() }
         .onChange(of: notLiveCheckInterval) { _ in saveSettings() }
         .onDisappear {
-            saveSettings()
+            saveImmediately()
         }
     }
     
-    private func saveSettings() {
-        // Avoid saving settings while processing is already happening
-        guard !isProcessing else { return }
-        
-        Task {
-            isProcessing = true
-            
-            // Save settings using the ViewModel
-            await viewModel.saveSettings(
-                channelId: channelId,
-                apiKey: apiKey
-            )
-            
-            // Start monitoring to refresh the state
-            await mainViewModel.startMonitoring()
-            
-            isProcessing = false
+    /// Debounced save for text fields (API key and channel ID)
+    /// Waits 500ms after user stops typing before saving
+    private func debouncedSave() {
+        // Cancel any pending save task
+        saveTask?.cancel()
+
+        // Create new debounced save task
+        saveTask = Task {
+            // Wait 500ms before saving
+            try? await Task.sleep(nanoseconds: 500_000_000)
+
+            // Check if task was cancelled during sleep
+            guard !Task.isCancelled else { return }
+
+            // Perform the actual save
+            await performSave()
         }
+    }
+
+    /// Immediate save for sliders and when view disappears
+    private func saveSettings() {
+        Task {
+            await performSave()
+        }
+    }
+
+    /// Immediate save without creating a new task (called from onDisappear)
+    private func saveImmediately() {
+        // Cancel any pending debounced save
+        saveTask?.cancel()
+
+        Task {
+            await performSave()
+        }
+    }
+
+    /// Performs the actual save operation
+    @MainActor
+    private func performSave() async {
+        // Avoid concurrent saves
+        guard !isProcessing else { return }
+
+        isProcessing = true
+
+        // Save settings using the ViewModel
+        await viewModel.saveSettings(
+            channelId: channelId,
+            apiKey: apiKey
+        )
+
+        // Start monitoring to refresh the state
+        await mainViewModel.startMonitoring()
+
+        isProcessing = false
     }
 }
 

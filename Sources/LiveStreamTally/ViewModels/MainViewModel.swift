@@ -45,7 +45,9 @@ final class MainViewModel: ObservableObject {
     @Published var error: String?
     @Published var isLoading = false
     @Published var currentTime: String = ""
-    
+    @Published var showDateTime: Bool = false
+    @Published var showViewerCount: Bool = false
+
     // Remove @AppStorage properties
     // @AppStorage("youtube_channel_id") private var channelId = ""
     // @AppStorage("youtube_channel_id_cached") private var cachedChannelId = ""
@@ -59,7 +61,7 @@ final class MainViewModel: ObservableObject {
     private var youtubeService: (any YouTubeServiceProtocol)?
     private let preferences: any PreferencesManagerProtocol
     private let clock: any ClockProtocol
-    private var timer: Timer?
+    private var statusCheckPublisher: AnyCancellable?
     private var timePublisher: AnyCancellable?
 
     // Flag to prevent replacing injected services in tests
@@ -93,6 +95,8 @@ final class MainViewModel: ObservableObject {
         self.channelId = preferences.getChannelId()
         self.cachedChannelId = preferences.cachedChannelId
         self.uploadPlaylistId = preferences.uploadPlaylistId
+        self.showDateTime = preferences.showDateTime
+        self.showViewerCount = preferences.showViewerCount
 
         // Setup subscriptions to preferences publishers
         setupPreferenceSubscriptions()
@@ -129,8 +133,7 @@ final class MainViewModel: ObservableObject {
     }
     
     deinit {
-        // Unregister notifications
-        NotificationCenter.default.removeObserver(self)
+        // Combine cancellables are automatically cancelled
     }
     
     private func setupPreferenceSubscriptions() {
@@ -163,37 +166,52 @@ final class MainViewModel: ObservableObject {
                 self?.uploadPlaylistId = newValue
             }
             .store(in: &cancellables)
+
+        // Subscribe to showDateTime changes
+        prefs.$showDateTime
+            .receive(on: RunLoop.main)
+            .sink { [weak self] newValue in
+                self?.showDateTime = newValue
+            }
+            .store(in: &cancellables)
+
+        // Subscribe to showViewerCount changes
+        prefs.$showViewerCount
+            .receive(on: RunLoop.main)
+            .sink { [weak self] newValue in
+                self?.showViewerCount = newValue
+            }
+            .store(in: &cancellables)
     }
     
     private func registerForNotifications() {
         Logger.debug("REGISTERING NOTIFICATIONS in MainViewModel", category: .main)
-        
-        // Register for API key changes
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleApiKeyChanged),
-            name: PreferencesManager.NotificationNames.apiKeyChanged,
-            object: nil
-        )
-        
-        // Register for channel ID changes
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleChannelChanged),
-            name: PreferencesManager.NotificationNames.channelChanged,
-            object: nil
-        )
-        
-        // Register for interval changes
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleIntervalChanged),
-            name: PreferencesManager.NotificationNames.intervalChanged,
-            object: nil
-        )
+
+        // Register for API key changes using Combine
+        NotificationCenter.default.publisher(for: PreferencesManager.NotificationNames.apiKeyChanged)
+            .sink { [weak self] _ in
+                self?.handleApiKeyChanged()
+            }
+            .store(in: &cancellables)
+
+        // Register for channel ID changes using Combine
+        NotificationCenter.default.publisher(for: PreferencesManager.NotificationNames.channelChanged)
+            .sink { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    await self?.handleChannelChangedAsync()
+                }
+            }
+            .store(in: &cancellables)
+
+        // Register for interval changes using Combine
+        NotificationCenter.default.publisher(for: PreferencesManager.NotificationNames.intervalChanged)
+            .sink { [weak self] _ in
+                self?.handleIntervalChanged()
+            }
+            .store(in: &cancellables)
     }
     
-    @objc private func handleApiKeyChanged() {
+    private func handleApiKeyChanged() {
         // Don't replace injected services (used in tests)
         guard !serviceWasInjected else {
             Logger.debug("Ignoring API key change - service was injected", category: .main)
@@ -213,25 +231,18 @@ final class MainViewModel: ObservableObject {
         }
     }
     
-    @objc private func handleChannelChanged() {
-        // Create a Task to handle the async work
-        Task { @MainActor [weak self] in
-            await self?.handleChannelChangedAsync()
-        }
-    }
-    
-    @objc private func handleChannelChangedAsync() async {
+    private func handleChannelChangedAsync() async {
         // Clear YouTube service cache when channel changes
         youtubeService?.clearCache()
-        
+
         // Restart monitoring if active
-        if timer != nil {
+        if statusCheckPublisher != nil {
             await stopMonitoring()
             await startMonitoring()
         }
     }
     
-    @objc private func handleIntervalChanged() {
+    private func handleIntervalChanged() {
         // Update timer interval when intervals are changed in preferences
         updateTimerInterval()
     }
@@ -241,21 +252,22 @@ final class MainViewModel: ObservableObject {
     }
     
     private func updateTimerInterval() {
-        guard timer != nil else { return }
-        
-        // Stop existing timer
-        timer?.invalidate()
-        
-        // Get current intervals from preferences
-        let liveInterval = preferences.getLiveCheckInterval()
-        let notLiveInterval = preferences.getNotLiveCheckInterval()
-        
-        // Create new timer with appropriate interval
-        timer = Timer.scheduledTimer(withTimeInterval: isLive ? liveInterval : notLiveInterval, repeats: true) { [weak self] _ in
-            Task { [weak self] in
-                await self?.checkLiveStatus()
+        guard statusCheckPublisher != nil else { return }
+
+        // Cancel existing publisher
+        statusCheckPublisher?.cancel()
+
+        // Get new interval based on live status
+        let interval = isLive ? preferences.getLiveCheckInterval() : preferences.getNotLiveCheckInterval()
+
+        // Create new publisher with updated interval
+        statusCheckPublisher = Timer.publish(every: interval, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                Task { [weak self] in
+                    await self?.checkLiveStatus()
+                }
             }
-        }
     }
     
     func startMonitoring() async {
@@ -264,38 +276,40 @@ final class MainViewModel: ObservableObject {
             error = "YouTube service not initialized. Please check your API key."
             return
         }
-        
+
         guard !channelId.isEmpty else {
             error = "Channel ID not configured"
             return
         }
-        
-        // Stop any existing timer
+
+        // Stop any existing publisher
         await stopMonitoring()
-        
+
         isLoading = true
 
         // Check immediately
         await checkLiveStatus()
         isLoading = false
-        
+
         // Get initial interval from preferences
         let initialInterval = preferences.getNotLiveCheckInterval()
-        
-        // Then start periodic checks with initial interval
-        timer = Timer.scheduledTimer(withTimeInterval: initialInterval, repeats: true) { [weak self] _ in
-            Task { [weak self] in
-                await self?.checkLiveStatus()
+
+        // Start periodic checks with Combine publisher
+        statusCheckPublisher = Timer.publish(every: initialInterval, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                Task { [weak self] in
+                    await self?.checkLiveStatus()
+                }
             }
-        }
-        
+
         // Start time updates
         startTimeUpdates()
     }
     
     func stopMonitoring() async {
-        timer?.invalidate()
-        timer = nil
+        statusCheckPublisher?.cancel()
+        statusCheckPublisher = nil
         stopTimeUpdates()
         Logger.info("Monitoring stopped", category: .main)
     }
