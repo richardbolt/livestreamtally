@@ -57,18 +57,20 @@ class MockNDIBroadcaster {
     var lastIsLive = false
     var lastViewerCount = 0
     var lastTitle = ""
-    
+    var lastOutputName: String?
+
     // Track method calls
     var startCalled = false
     var stopCalled = false
     var sendTallyCalled = false
     var sendFrameCalled = false
-    
+
     init() {}
-    
+
     func start(name: String, viewModel: MainViewModel) {
         startCalled = true
         isStarted = true
+        lastOutputName = name
     }
     
     func stop() {
@@ -81,15 +83,9 @@ class MockNDIBroadcaster {
         lastIsLive = isLive
         lastViewerCount = viewerCount
         lastTitle = title
-        
-        // Build the metadata string like the real implementation
-        var metadata = "<ndi_metadata "
-        metadata += "isLive=\"\(isLive ? "true" : "false")\" "
-        metadata += "viewerCount=\"\(viewerCount)\" "
-        metadata += "title=\"\(title.replacingOccurrences(of: "\"", with: "&quot;"))\" "
-        metadata += "/>"
-        
-        lastMetadata = metadata
+
+        // Use NDIHelpers to format metadata (same as real implementation)
+        lastMetadata = NDIHelpers.formatMetadata(isLive: isLive, viewerCount: viewerCount, title: title)
     }
     
     func sendFrame() {

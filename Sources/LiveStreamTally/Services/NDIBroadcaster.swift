@@ -120,21 +120,17 @@ class NDIBroadcaster: NDIBroadcasterProtocol, @unchecked Sendable {
             Logger.error("Cannot send tally - NDI sender not initialized", category: .app)
             return
         }
-        
+
         Logger.debug("Sending NDI tally - isLive: \(isLive), viewers: \(viewerCount), title: \(title)", category: .app)
-        
-        var metadata = "<ndi_metadata "
-        metadata += "isLive=\"\(isLive ? "true" : "false")\" "
-        metadata += "viewerCount=\"\(viewerCount)\" "
-        metadata += "title=\"\(title.replacingOccurrences(of: "\"", with: "&quot;"))\" "
-        metadata += "/>"
-        
+
+        let metadata = NDIHelpers.formatMetadata(isLive: isLive, viewerCount: viewerCount, title: title)
+
         metadata.withCString { cString in
             var frame = NDIlib_metadata_frame_t()
             frame.p_data = UnsafeMutablePointer(mutating: cString)
             frame.length = Int32(metadata.utf8.count)
             frame.timecode = Int64(Date().timeIntervalSince1970 * 1000)
-            
+
             NDIlib_send_send_metadata(sender, &frame)
             Logger.debug("NDI metadata frame sent successfully", category: .app)
         }
@@ -190,25 +186,12 @@ class NDIBroadcaster: NDIBroadcasterProtocol, @unchecked Sendable {
         // Clear the context with a black background
         context.setFillColor(CGColor(red: 0, green: 0, blue: 0, alpha: 1))
         context.fill(CGRect(x: 0, y: 0, width: targetWidth, height: targetHeight))
-        
+
         // Calculate aspect-preserving dimensions
-        let sourceAspect = Double(cgImage.width) / Double(cgImage.height)
-        let targetAspect = Double(targetWidth) / Double(targetHeight)
-        
-        var drawRect = CGRect(x: 0, y: 0, width: targetWidth, height: targetHeight)
-        
-        if sourceAspect > targetAspect {
-            // Source is wider - fit to width
-            let newHeight = Double(targetWidth) / sourceAspect
-            let yOffset = (Double(targetHeight) - newHeight) / 2
-            drawRect = CGRect(x: 0, y: yOffset, width: Double(targetWidth), height: newHeight)
-        } else {
-            // Source is taller - fit to height
-            let newWidth = Double(targetHeight) * sourceAspect
-            let xOffset = (Double(targetWidth) - newWidth) / 2
-            drawRect = CGRect(x: xOffset, y: 0, width: newWidth, height: Double(targetHeight))
-        }
-        
+        let sourceSize = CGSize(width: cgImage.width, height: cgImage.height)
+        let targetSize = CGSize(width: targetWidth, height: targetHeight)
+        let drawRect = NDIHelpers.calculateAspectRatioFit(sourceSize: sourceSize, targetSize: targetSize)
+
         // Draw with proper aspect ratio
         context.draw(cgImage, in: drawRect)
         

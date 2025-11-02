@@ -1,8 +1,8 @@
 //
-//  NDIBroadcasterTestsSwift.swift
+//  NDIBroadcasterTests.swift
 //  LiveStreamTallyTests
 //
-//  Created as a Swift Testing version of NDIBroadcasterTests
+//  Tests for NDI broadcaster integration logic
 //
 
 import Testing
@@ -10,103 +10,194 @@ import Foundation
 @testable import LiveStreamTally
 
 @Suite("NDI Broadcaster Tests")
-struct NDIBroadcasterTestsSuite {
-    
-    // These tests are mostly placeholders since NDI functionality
-    // is hardware-dependent and difficult to test in isolation
-    
-    @Test("Should initialize without crashing")
-    func testNDIBroadcasterInitialization() {
-        // This test doesn't need @MainActor because NDIBroadcaster init is not actor-isolated
+struct NDIBroadcasterTests {
+
+    // MARK: - Initialization Tests
+
+    @Test("NDIBroadcaster initializes without crashing")
+    func ndiBroadcaster_initializes() {
+        // Act
         let broadcaster = NDIBroadcaster()
-        // Just verify the broadcaster exists
-        #expect(Bool(true), "NDIBroadcaster initialization should not crash")
+
+        // Assert - Just verify it doesn't crash
+        #expect(Bool(true), "NDIBroadcaster should initialize without crashing")
+
+        // Note: We can't verify isInitialized as it's private, but the fact
+        // that initialization completed is sufficient
     }
-    
-    // Note: Actual NDI functionality tests would need the NDI runtime
-    // and would be integration tests rather than unit tests
-    
-    @Test(.disabled("Requires NDI runtime"))
-    func testSendTally() {
-        // This test doesn't need @MainActor because sendTally is not actor-isolated
-        // This test is disabled by default as it requires NDI runtime
-        let broadcaster = NDIBroadcaster()
-        
-        // Just verify it doesn't crash
-        broadcaster.sendTally(isLive: true, viewerCount: 100, title: "Test Stream")
-        
-        // Just verify the test completes without crashing
-        #expect(Bool(true), "sendTally method should not crash")
-    }
-    
-    // MARK: - Mock Tests
-    
-    @Test("Should start and stop correctly")
-    @MainActor func testStartAndStop() async {
-        // Create a mock broadcaster instead of using the real one
+
+    // MARK: - Integration Tests with Mock
+
+    @Test("MockNDIBroadcaster tracks start and stop calls")
+    @MainActor
+    func mockBroadcaster_tracks_lifecycle() async {
+        // Arrange
         let mockBroadcaster = MockNDIBroadcaster()
-        
-        // Create a view model
-        let viewModel = MainViewModel()
-        
-        // Start the broadcaster
+        let fakeService = FakeYouTubeService()
+        let prefs = InMemoryPreferences()
+
+        let viewModel = MainViewModel(
+            youtubeService: fakeService,
+            preferences: prefs,
+            isTestMode: true
+        )
+
+        // Act - Start
         mockBroadcaster.start(name: "TestOutput", viewModel: viewModel)
-        
-        // Verify it's started
-        #expect(mockBroadcaster.isStarted)
-        #expect(mockBroadcaster.startCalled)
-        
-        // Stop the broadcaster
+
+        // Assert
+        #expect(mockBroadcaster.isStarted, "Should be started")
+        #expect(mockBroadcaster.startCalled, "Start should have been called")
+        #expect(mockBroadcaster.lastOutputName == "TestOutput", "Should track output name")
+
+        // Act - Stop
         mockBroadcaster.stop()
-        
-        // Verify it's stopped
-        #expect(!mockBroadcaster.isStarted)
-        #expect(mockBroadcaster.stopCalled)
+
+        // Assert
+        #expect(!mockBroadcaster.isStarted, "Should be stopped")
+        #expect(mockBroadcaster.stopCalled, "Stop should have been called")
     }
-    
-    @Test("Should format metadata correctly")
-    func testNDIMetadataFormat() {
-        // Create a mock broadcaster
+
+    @Test("MockNDIBroadcaster tracks tally calls")
+    func mockBroadcaster_tracks_tally_calls() {
+        // Arrange
         let mockBroadcaster = MockNDIBroadcaster()
-        
-        // Send a tally update with test data
+
+        // Act
+        mockBroadcaster.sendTally(isLive: true, viewerCount: 250, title: "Live Stream")
+
+        // Assert
+        #expect(mockBroadcaster.sendTallyCalled, "sendTally should have been called")
+        #expect(mockBroadcaster.lastIsLive == true, "Should track live status")
+        #expect(mockBroadcaster.lastViewerCount == 250, "Should track viewer count")
+        #expect(mockBroadcaster.lastTitle == "Live Stream", "Should track title")
+    }
+
+    @Test("MockNDIBroadcaster formats metadata correctly")
+    func mockBroadcaster_formats_metadata() {
+        // Arrange
+        let mockBroadcaster = MockNDIBroadcaster()
+
+        // Act
         mockBroadcaster.sendTally(isLive: true, viewerCount: 100, title: "Test Stream")
-        
-        // Verify the metadata was formatted correctly
-        #expect(mockBroadcaster.sendTallyCalled)
-        #expect(mockBroadcaster.lastIsLive)
-        #expect(mockBroadcaster.lastViewerCount == 100)
-        #expect(mockBroadcaster.lastTitle == "Test Stream")
-        
-        // Verify the metadata string contains the correct attributes
+
+        // Assert - Verify metadata structure
         let metadata = mockBroadcaster.lastMetadata ?? ""
-        #expect(metadata.contains("isLive=\"true\""))
-        #expect(metadata.contains("viewerCount=\"100\""))
-        #expect(metadata.contains("title=\"Test Stream\""))
+        #expect(metadata.hasPrefix("<ndi_metadata "), "Should start with opening tag")
+        #expect(metadata.hasSuffix("/>"), "Should end with self-closing tag")
+        #expect(metadata.contains("isLive=\"true\""), "Should include live status")
+        #expect(metadata.contains("viewerCount=\"100\""), "Should include viewer count")
+        #expect(metadata.contains("title=\"Test Stream\""), "Should include title")
     }
-    
-    @Test("Should handle special characters in titles")
-    func testSpecialCharacterHandling() {
-        // Create a mock broadcaster
+
+    @Test("MockNDIBroadcaster handles special characters in titles")
+    func mockBroadcaster_escapes_special_characters() {
+        // Arrange
         let mockBroadcaster = MockNDIBroadcaster()
-        
-        // Send a tally update with a title containing special characters
         let titleWithSpecialChars = "Test \"Stream\" & <Tags>"
-        mockBroadcaster.sendTally(isLive: true, viewerCount: 100, title: titleWithSpecialChars)
-        
-        // Verify the metadata was created
-        #expect(mockBroadcaster.sendTallyCalled)
-        #expect(mockBroadcaster.lastTitle == titleWithSpecialChars)
-        
-        // Verify the special characters were properly escaped in the metadata
+
+        // Act
+        mockBroadcaster.sendTally(isLive: true, viewerCount: 50, title: titleWithSpecialChars)
+
+        // Assert
         let metadata = mockBroadcaster.lastMetadata ?? ""
-        
-        // The double quotes should be escaped as &quot;
-        #expect(metadata.contains("&quot;"))
-        #expect(!metadata.contains("title=\"Test \"Stream\" & <Tags>\""))
-        
-        // The metadata should still be valid XML
-        #expect(metadata.hasPrefix("<ndi_metadata "))
-        #expect(metadata.hasSuffix("/>"))
+
+        // Verify special characters are escaped
+        #expect(metadata.contains("&quot;"), "Should escape double quotes")
+        #expect(metadata.contains("&amp;"), "Should escape ampersands")
+        #expect(metadata.contains("&lt;"), "Should escape less-than")
+        #expect(metadata.contains("&gt;"), "Should escape greater-than")
+
+        // Verify the original unescaped characters are NOT in the metadata
+        #expect(!metadata.contains("\"Stream\""), "Should not contain unescaped quotes")
+        #expect(!metadata.contains(" & "), "Should not contain unescaped ampersand")
+        #expect(!metadata.contains("<Tags>"), "Should not contain unescaped tags")
+
+        // Verify it's still valid XML
+        #expect(metadata.hasPrefix("<ndi_metadata "), "Should be valid XML")
+        #expect(metadata.hasSuffix("/>"), "Should close properly")
     }
-} 
+
+    @Test("MockNDIBroadcaster handles OFF AIR state")
+    func mockBroadcaster_handles_off_air() {
+        // Arrange
+        let mockBroadcaster = MockNDIBroadcaster()
+
+        // Act
+        mockBroadcaster.sendTally(isLive: false, viewerCount: 0, title: "")
+
+        // Assert
+        #expect(mockBroadcaster.lastIsLive == false, "Should track off-air status")
+        #expect(mockBroadcaster.lastViewerCount == 0, "Should show zero viewers")
+        #expect(mockBroadcaster.lastTitle == "", "Should have empty title")
+
+        let metadata = mockBroadcaster.lastMetadata ?? ""
+        #expect(metadata.contains("isLive=\"false\""), "Metadata should show not live")
+    }
+
+    @Test("MockNDIBroadcaster handles multiple tally updates")
+    func mockBroadcaster_handles_multiple_updates() {
+        // Arrange
+        let mockBroadcaster = MockNDIBroadcaster()
+
+        // Act - Send multiple updates
+        mockBroadcaster.sendTally(isLive: true, viewerCount: 50, title: "Starting")
+        mockBroadcaster.sendTally(isLive: true, viewerCount: 100, title: "Growing")
+        mockBroadcaster.sendTally(isLive: true, viewerCount: 150, title: "Peak")
+
+        // Assert - Should track the latest values
+        #expect(mockBroadcaster.lastViewerCount == 150, "Should track latest viewer count")
+        #expect(mockBroadcaster.lastTitle == "Peak", "Should track latest title")
+
+        // Should track that it was called multiple times
+        // (MockNDIBroadcaster could be enhanced to track call count)
+    }
+
+    // MARK: - Real NDI Tests (Disabled)
+
+    @Test(.disabled("Requires NDI runtime"))
+    func real_ndi_sendTally_does_not_crash() {
+        // This test is disabled because it requires the NDI runtime
+        // to be installed and available
+
+        // Arrange
+        let broadcaster = NDIBroadcaster()
+
+        // Act - Just verify it doesn't crash when sender is nil
+        broadcaster.sendTally(isLive: true, viewerCount: 100, title: "Test Stream")
+
+        // Assert
+        #expect(Bool(true), "Should not crash even without initialized sender")
+    }
+
+    @Test(.disabled("Requires NDI runtime and main window"))
+    @MainActor
+    func real_ndi_start_requires_window() async {
+        // This test is disabled because it requires:
+        // 1. NDI runtime to be installed
+        // 2. A main application window to exist
+
+        // Arrange
+        let broadcaster = NDIBroadcaster()
+        let fakeService = FakeYouTubeService()
+        let prefs = InMemoryPreferences()
+        let viewModel = MainViewModel(
+            youtubeService: fakeService,
+            preferences: prefs,
+            isTestMode: true
+        )
+
+        // Act
+        await broadcaster.start(name: "TestOutput", viewModel: viewModel)
+
+        // Assert
+        // In a real test environment with NDI and a window, we would verify:
+        // - The broadcaster starts successfully
+        // - The sender is created
+        // - The view to capture is set
+        #expect(Bool(true), "Start should complete without crashing")
+
+        // Clean up
+        await broadcaster.stop()
+    }
+}
