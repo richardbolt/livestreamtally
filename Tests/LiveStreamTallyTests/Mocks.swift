@@ -115,30 +115,30 @@ class MockPreferencesManager {
     
     func setChannelId(_ value: String) {
         channelId = value
-        NotificationCenter.default.post(name: PreferencesManager.Notifications.channelChanged, object: nil)
+        NotificationCenter.default.post(name: PreferencesManager.NotificationNames.channelChanged, object: nil)
     }
-    
+
     func getApiKey() -> String? {
         return apiKey
     }
-    
+
     func setApiKey(_ value: String) {
         apiKey = value
-        NotificationCenter.default.post(name: PreferencesManager.Notifications.apiKeyChanged, object: nil)
+        NotificationCenter.default.post(name: PreferencesManager.NotificationNames.apiKeyChanged, object: nil)
     }
-    
+
     func getLiveCheckInterval() -> TimeInterval {
         return liveRefreshInterval
     }
-    
+
     func getNotLiveCheckInterval() -> TimeInterval {
         return notLiveRefreshInterval
     }
-    
+
     func updateIntervals(liveInterval: TimeInterval, notLiveInterval: TimeInterval) {
         liveRefreshInterval = liveInterval
         notLiveRefreshInterval = notLiveInterval
-        NotificationCenter.default.post(name: PreferencesManager.Notifications.intervalChanged, object: nil)
+        NotificationCenter.default.post(name: PreferencesManager.NotificationNames.intervalChanged, object: nil)
     }
     
     func getNDIOutputName() -> String {

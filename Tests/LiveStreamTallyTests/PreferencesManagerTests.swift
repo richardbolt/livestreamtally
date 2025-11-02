@@ -80,7 +80,7 @@ struct PreferencesManagerTestsSuite {
         // Swift Testing approach to testing notifications
         await confirmation { notificationReceived in
             // Set up notification observer
-            let notificationName = PreferencesManager.Notifications.channelChanged
+            let notificationName = PreferencesManager.NotificationNames.channelChanged
             let observer = NotificationCenter.default.addObserver(
                 forName: notificationName,
                 object: nil as Any?,

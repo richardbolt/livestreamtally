@@ -14,8 +14,8 @@ final class FakeYouTubeService: YouTubeServiceProtocol {
     /// Script of statuses to return on successive calls
     var script: [LiveStatus] = []
 
-    /// Current index in the script
-    private var scriptIndex: Int = 0
+    /// Current index in the script (public for debugging)
+    var scriptIndex: Int = 0
 
     /// Status to return on next call (overrides script)
     var nextStatus: LiveStatus?
@@ -76,7 +76,10 @@ final class FakeYouTubeService: YouTubeServiceProtocol {
         }
 
         let status = script[scriptIndex]
-        scriptIndex = min(scriptIndex + 1, script.count - 1)
+        // Only advance if not at the end
+        if scriptIndex < script.count - 1 {
+            scriptIndex += 1
+        }
         return status
     }
 

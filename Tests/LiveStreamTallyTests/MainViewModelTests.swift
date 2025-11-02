@@ -37,7 +37,7 @@ struct MainViewModelTestsSuite {
         
         // Add observers
         let apiKeyObserver = NotificationCenter.default.addObserver(
-            forName: PreferencesManager.Notifications.apiKeyChanged,
+            forName: PreferencesManager.NotificationNames.apiKeyChanged,
             object: nil,
             queue: .main
         ) { _ in
@@ -45,7 +45,7 @@ struct MainViewModelTestsSuite {
         }
         
         let channelObserver = NotificationCenter.default.addObserver(
-            forName: PreferencesManager.Notifications.channelChanged,
+            forName: PreferencesManager.NotificationNames.channelChanged,
             object: nil,
             queue: .main
         ) { _ in
@@ -53,8 +53,8 @@ struct MainViewModelTestsSuite {
         }
         
         // Trigger notifications
-        NotificationCenter.default.post(name: PreferencesManager.Notifications.apiKeyChanged, object: nil)
-        NotificationCenter.default.post(name: PreferencesManager.Notifications.channelChanged, object: nil)
+        NotificationCenter.default.post(name: PreferencesManager.NotificationNames.apiKeyChanged, object: nil)
+        NotificationCenter.default.post(name: PreferencesManager.NotificationNames.channelChanged, object: nil)
         
         // We need a brief delay for the notifications to be processed
         try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds

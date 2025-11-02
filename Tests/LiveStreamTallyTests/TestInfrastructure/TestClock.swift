@@ -9,8 +9,7 @@ import Foundation
 @testable import LiveStreamTally
 
 /// Test clock that provides deterministic time control for testing
-@MainActor
-final class TestClock: ClockProtocol {
+final class TestClock: ClockProtocol, @unchecked Sendable {
     private var currentTime: Date
 
     /// Initialize with a starting time

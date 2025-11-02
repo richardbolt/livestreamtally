@@ -26,8 +26,7 @@ enum TallyEvent: Equatable {
 }
 
 /// NDI spy for testing NDI integration without hardware
-@MainActor
-final class NDISpy: NDIBroadcasterProtocol {
+final class NDISpy: NDIBroadcasterProtocol, @unchecked Sendable {
     /// Track whether broadcaster is started
     var isStarted = false
 
