@@ -15,7 +15,8 @@ import os
 import NDIWrapper
 import SwiftUI
 
-class NDIBroadcaster: NDIBroadcasterProtocol, @unchecked Sendable {
+@MainActor
+class NDIBroadcaster: NDIBroadcasterProtocol {
     private var sender: NDIlib_send_instance_t?
     private var isInitialized = false
     private var viewToCapture: NSView?
@@ -30,23 +31,13 @@ class NDIBroadcaster: NDIBroadcasterProtocol, @unchecked Sendable {
         isInitialized = true
     }
     
-    deinit {
-        // Can't call @MainActor methods directly from deinit
-        let wasInitialized = isInitialized
-        if let sender = self.sender {
-            NDIlib_send_destroy(sender)
-        }
-        viewToCapture = nil
-        viewModel = nil
-        self.sender = nil
-        
-        if wasInitialized {
-            NDIlib_destroy()
-            Logger.info("NDI destroyed", category: .app)
-        }
+    nonisolated deinit {
+        // Deinit is nonisolated and cannot access actor-isolated properties
+        // The NDI cleanup will happen in the stop() method when called
+        // This is the correct approach for @MainActor classes with external resources
+        Logger.info("NDI broadcaster deallocated", category: .app)
     }
     
-    @MainActor
     func start(name: String, viewModel: MainViewModel) async {
         guard isInitialized else {
             Logger.error("Cannot start NDI - not initialized", category: .app)
@@ -104,7 +95,6 @@ class NDIBroadcaster: NDIBroadcasterProtocol, @unchecked Sendable {
         }
     }
     
-    @MainActor
     func stop() async {
         viewToCapture = nil
         viewModel = nil
@@ -113,9 +103,16 @@ class NDIBroadcaster: NDIBroadcasterProtocol, @unchecked Sendable {
             self.sender = nil
             Logger.info("NDI broadcast stopped", category: .app)
         }
+
+        // Clean up NDI library if it was initialized
+        if isInitialized {
+            NDIlib_destroy()
+            isInitialized = false
+            Logger.info("NDI destroyed", category: .app)
+        }
     }
     
-    func sendTally(isLive: Bool, viewerCount: Int, title: String) {
+    func sendTally(isLive: Bool, viewerCount: Int, title: String) async {
         guard let sender = sender else {
             Logger.error("Cannot send tally - NDI sender not initialized", category: .app)
             return
@@ -136,7 +133,6 @@ class NDIBroadcaster: NDIBroadcasterProtocol, @unchecked Sendable {
         }
     }
     
-    @MainActor
     func sendFrame() async {
         guard let sender = sender,
               let viewToCapture = viewToCapture else {

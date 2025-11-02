@@ -111,14 +111,21 @@ class NDIViewModel: ObservableObject {
     @MainActor
     func updateTally() {
         guard isStreaming else { return }
-        
-        Logger.debug("Updating NDI tally with isLive: \(mainViewModel!.isLive), viewers: \(mainViewModel!.viewerCount)", category: .app)
-        
-        broadcaster.sendTally(
-            isLive: mainViewModel!.isLive,
-            viewerCount: mainViewModel!.viewerCount,
-            title: mainViewModel!.title
-        )
+
+        guard let mainViewModel = mainViewModel else {
+            Logger.warning("Cannot update tally: mainViewModel is nil", category: .app)
+            return
+        }
+
+        Logger.debug("Updating NDI tally with isLive: \(mainViewModel.isLive), viewers: \(mainViewModel.viewerCount)", category: .app)
+
+        Task {
+            await broadcaster.sendTally(
+                isLive: mainViewModel.isLive,
+                viewerCount: mainViewModel.viewerCount,
+                title: mainViewModel.title
+            )
+        }
     }
 }
 

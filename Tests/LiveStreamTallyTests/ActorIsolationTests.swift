@@ -102,32 +102,28 @@ struct ActorIsolationTests {
         #expect(Bool(true), "Clock types are Sendable and can be used across actor boundaries")
     }
 
-    @Test("NDIBroadcaster is @unchecked Sendable")
-    func ndiBroadcaster_is_sendable() {
-        // Arrange
+    @Test("NDIBroadcaster is @MainActor isolated")
+    @MainActor
+    func ndiBroadcaster_is_mainActor_isolated() async {
+        // Arrange - NDIBroadcaster must be created on @MainActor
         let broadcaster = NDIBroadcaster()
 
-        // Act - Should compile because NDIBroadcaster is @unchecked Sendable
-        Task {
-            let _ = broadcaster
-            // Can reference broadcaster across actor boundary
-        }
+        // Act - Should be able to call async methods on MainActor
+        await broadcaster.sendTally(isLive: true, viewerCount: 100, title: "Test")
 
-        #expect(Bool(true), "NDIBroadcaster is Sendable")
+        #expect(Bool(true), "NDIBroadcaster is @MainActor isolated")
     }
 
-    @Test("NDISpy is @unchecked Sendable")
-    func ndiSpy_is_sendable() {
-        // Arrange
+    @Test("NDISpy is @MainActor isolated")
+    @MainActor
+    func ndiSpy_is_mainActor_isolated() async {
+        // Arrange - NDISpy must be created on @MainActor
         let spy = NDISpy()
 
-        // Act - Should compile because NDISpy is @unchecked Sendable
-        Task {
-            let _ = spy
-            // Can reference spy across actor boundary
-        }
+        // Act - Should be able to call async methods on MainActor
+        await spy.sendTally(isLive: true, viewerCount: 100, title: "Test")
 
-        #expect(Bool(true), "NDISpy is Sendable")
+        #expect(Bool(true), "NDISpy is @MainActor isolated")
     }
 
     // MARK: - Concurrent Access Tests
@@ -245,7 +241,7 @@ struct ActorIsolationTests {
         // Act - Use all test doubles
         fakeService.nextStatus = LiveStatus(isLive: true, viewerCount: 1, title: "Test", videoId: "abc")
         inMemoryPrefs.channelId = "UC_Test"
-        ndiSpy.sendTally(isLive: true, viewerCount: 100, title: "Test")
+        await ndiSpy.sendTally(isLive: true, viewerCount: 100, title: "Test")
         let _ = testClock.now()
 
         // Assert

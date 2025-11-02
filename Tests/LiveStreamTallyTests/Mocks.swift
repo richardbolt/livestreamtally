@@ -51,6 +51,7 @@ class MockYouTubeService {
 
 // MARK: - Mock NDI Broadcaster
 
+@MainActor
 class MockNDIBroadcaster {
     var isStarted = false
     var lastMetadata: String?
@@ -67,18 +68,18 @@ class MockNDIBroadcaster {
 
     init() {}
 
-    func start(name: String, viewModel: MainViewModel) {
+    func start(name: String, viewModel: MainViewModel) async {
         startCalled = true
         isStarted = true
         lastOutputName = name
     }
     
-    func stop() {
+    func stop() async {
         stopCalled = true
         isStarted = false
     }
     
-    func sendTally(isLive: Bool, viewerCount: Int, title: String) {
+    func sendTally(isLive: Bool, viewerCount: Int, title: String) async {
         sendTallyCalled = true
         lastIsLive = isLive
         lastViewerCount = viewerCount
@@ -88,7 +89,7 @@ class MockNDIBroadcaster {
         lastMetadata = NDIHelpers.formatMetadata(isLive: isLive, viewerCount: viewerCount, title: title)
     }
     
-    func sendFrame() {
+    func sendFrame() async {
         sendFrameCalled = true
     }
 }

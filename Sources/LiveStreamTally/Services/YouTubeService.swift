@@ -17,14 +17,14 @@ import os
 // Mark the GoogleAPI types as implicitly Sendable for migration purposes
 @preconcurrency import GoogleAPIClientForREST_YouTube
 
-struct LiveStatus {
+struct LiveStatus: Sendable {
     let isLive: Bool
     let viewerCount: Int
     let title: String
     let videoId: String
 }
 
-enum YouTubeError: Error {
+enum YouTubeError: Error, Sendable {
     case invalidChannelId
     case invalidApiKey
     case quotaExceeded
@@ -209,39 +209,39 @@ class YouTubeService: YouTubeServiceProtocol {
 
 // MARK: - Response Models
 
-struct SearchResponse: Codable {
+struct SearchResponse: Codable, Sendable {
     let items: [SearchItem]
 }
 
-struct SearchItem: Codable {
+struct SearchItem: Codable, Sendable {
     let id: VideoID
 }
 
-struct VideoID: Codable {
+struct VideoID: Codable, Sendable {
     let videoId: String
 }
 
-struct VideoResponse: Codable {
+struct VideoResponse: Codable, Sendable {
     let items: [Video]
 }
 
-struct Video: Codable {
+struct Video: Codable, Sendable {
     let snippet: VideoSnippet
     let liveStreamingDetails: LiveStreamingDetails?
 }
 
-struct VideoSnippet: Codable {
+struct VideoSnippet: Codable, Sendable {
     let title: String
 }
 
-struct LiveStreamingDetails: Codable {
+struct LiveStreamingDetails: Codable, Sendable {
     let concurrentViewers: String?
 }
 
-struct ChannelResponse: Codable {
+struct ChannelResponse: Codable, Sendable {
     let items: [Channel]
 }
 
-struct Channel: Codable {
+struct Channel: Codable, Sendable {
     let id: String
 } 

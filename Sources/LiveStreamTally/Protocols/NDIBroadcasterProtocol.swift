@@ -12,6 +12,7 @@
 import Foundation
 
 /// Protocol for NDI broadcasting to enable dependency injection and testing
+@MainActor
 protocol NDIBroadcasterProtocol {
     /// Starts the NDI broadcaster with the given name
     /// - Parameters:
@@ -27,7 +28,7 @@ protocol NDIBroadcasterProtocol {
     ///   - isLive: Whether the stream is currently live
     ///   - viewerCount: The number of viewers
     ///   - title: The stream title
-    func sendTally(isLive: Bool, viewerCount: Int, title: String)
+    func sendTally(isLive: Bool, viewerCount: Int, title: String) async
 
     /// Sends a video frame via NDI
     func sendFrame() async

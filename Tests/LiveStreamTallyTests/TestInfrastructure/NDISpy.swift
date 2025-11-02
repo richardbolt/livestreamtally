@@ -26,7 +26,8 @@ enum TallyEvent: Equatable {
 }
 
 /// NDI spy for testing NDI integration without hardware
-final class NDISpy: NDIBroadcasterProtocol, @unchecked Sendable {
+@MainActor
+final class NDISpy: NDIBroadcasterProtocol {
     /// Track whether broadcaster is started
     var isStarted = false
 
@@ -63,7 +64,7 @@ final class NDISpy: NDIBroadcasterProtocol, @unchecked Sendable {
         isStarted = false
     }
 
-    func sendTally(isLive: Bool, viewerCount: Int, title: String) {
+    func sendTally(isLive: Bool, viewerCount: Int, title: String) async {
         sendTallyCalled = true
         lastIsLive = isLive
         lastViewerCount = viewerCount

@@ -58,9 +58,6 @@ struct ContentView: View {
         .onAppear {
             Task { @MainActor in
                 Logger.debug("ContentView onAppear", category: .app)
-                
-                // NDI setup/start is now handled by AppDelegate after window creation
-                
                 // Start YouTube monitoring
                 await startMonitoring()
             }

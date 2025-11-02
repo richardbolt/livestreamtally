@@ -15,6 +15,7 @@ struct NDIBroadcasterTests {
     // MARK: - Initialization Tests
 
     @Test("NDIBroadcaster initializes without crashing")
+    @MainActor
     func ndiBroadcaster_initializes() {
         // Act
         let broadcaster = NDIBroadcaster()
@@ -43,7 +44,7 @@ struct NDIBroadcasterTests {
         )
 
         // Act - Start
-        mockBroadcaster.start(name: "TestOutput", viewModel: viewModel)
+        await mockBroadcaster.start(name: "TestOutput", viewModel: viewModel)
 
         // Assert
         #expect(mockBroadcaster.isStarted, "Should be started")
@@ -51,7 +52,7 @@ struct NDIBroadcasterTests {
         #expect(mockBroadcaster.lastOutputName == "TestOutput", "Should track output name")
 
         // Act - Stop
-        mockBroadcaster.stop()
+        await mockBroadcaster.stop()
 
         // Assert
         #expect(!mockBroadcaster.isStarted, "Should be stopped")
@@ -59,12 +60,13 @@ struct NDIBroadcasterTests {
     }
 
     @Test("MockNDIBroadcaster tracks tally calls")
-    func mockBroadcaster_tracks_tally_calls() {
+    @MainActor
+    func mockBroadcaster_tracks_tally_calls() async {
         // Arrange
         let mockBroadcaster = MockNDIBroadcaster()
 
         // Act
-        mockBroadcaster.sendTally(isLive: true, viewerCount: 250, title: "Live Stream")
+        await mockBroadcaster.sendTally(isLive: true, viewerCount: 250, title: "Live Stream")
 
         // Assert
         #expect(mockBroadcaster.sendTallyCalled, "sendTally should have been called")
@@ -74,12 +76,13 @@ struct NDIBroadcasterTests {
     }
 
     @Test("MockNDIBroadcaster formats metadata correctly")
-    func mockBroadcaster_formats_metadata() {
+    @MainActor
+    func mockBroadcaster_formats_metadata() async {
         // Arrange
         let mockBroadcaster = MockNDIBroadcaster()
 
         // Act
-        mockBroadcaster.sendTally(isLive: true, viewerCount: 100, title: "Test Stream")
+        await mockBroadcaster.sendTally(isLive: true, viewerCount: 100, title: "Test Stream")
 
         // Assert - Verify metadata structure
         let metadata = mockBroadcaster.lastMetadata ?? ""
@@ -91,13 +94,14 @@ struct NDIBroadcasterTests {
     }
 
     @Test("MockNDIBroadcaster handles special characters in titles")
-    func mockBroadcaster_escapes_special_characters() {
+    @MainActor
+    func mockBroadcaster_escapes_special_characters() async {
         // Arrange
         let mockBroadcaster = MockNDIBroadcaster()
         let titleWithSpecialChars = "Test \"Stream\" & <Tags>"
 
         // Act
-        mockBroadcaster.sendTally(isLive: true, viewerCount: 50, title: titleWithSpecialChars)
+        await mockBroadcaster.sendTally(isLive: true, viewerCount: 50, title: titleWithSpecialChars)
 
         // Assert
         let metadata = mockBroadcaster.lastMetadata ?? ""
@@ -119,12 +123,13 @@ struct NDIBroadcasterTests {
     }
 
     @Test("MockNDIBroadcaster handles OFF AIR state")
-    func mockBroadcaster_handles_off_air() {
+    @MainActor
+    func mockBroadcaster_handles_off_air() async {
         // Arrange
         let mockBroadcaster = MockNDIBroadcaster()
 
         // Act
-        mockBroadcaster.sendTally(isLive: false, viewerCount: 0, title: "")
+        await mockBroadcaster.sendTally(isLive: false, viewerCount: 0, title: "")
 
         // Assert
         #expect(mockBroadcaster.lastIsLive == false, "Should track off-air status")
@@ -136,14 +141,15 @@ struct NDIBroadcasterTests {
     }
 
     @Test("MockNDIBroadcaster handles multiple tally updates")
-    func mockBroadcaster_handles_multiple_updates() {
+    @MainActor
+    func mockBroadcaster_handles_multiple_updates() async {
         // Arrange
         let mockBroadcaster = MockNDIBroadcaster()
 
         // Act - Send multiple updates
-        mockBroadcaster.sendTally(isLive: true, viewerCount: 50, title: "Starting")
-        mockBroadcaster.sendTally(isLive: true, viewerCount: 100, title: "Growing")
-        mockBroadcaster.sendTally(isLive: true, viewerCount: 150, title: "Peak")
+        await mockBroadcaster.sendTally(isLive: true, viewerCount: 50, title: "Starting")
+        await mockBroadcaster.sendTally(isLive: true, viewerCount: 100, title: "Growing")
+        await mockBroadcaster.sendTally(isLive: true, viewerCount: 150, title: "Peak")
 
         // Assert - Should track the latest values
         #expect(mockBroadcaster.lastViewerCount == 150, "Should track latest viewer count")
@@ -156,7 +162,8 @@ struct NDIBroadcasterTests {
     // MARK: - Real NDI Tests (Disabled)
 
     @Test(.disabled("Requires NDI runtime"))
-    func real_ndi_sendTally_does_not_crash() {
+    @MainActor
+    func real_ndi_sendTally_does_not_crash() async {
         // This test is disabled because it requires the NDI runtime
         // to be installed and available
 
@@ -164,7 +171,7 @@ struct NDIBroadcasterTests {
         let broadcaster = NDIBroadcaster()
 
         // Act - Just verify it doesn't crash when sender is nil
-        broadcaster.sendTally(isLive: true, viewerCount: 100, title: "Test Stream")
+        await broadcaster.sendTally(isLive: true, viewerCount: 100, title: "Test Stream")
 
         // Assert
         #expect(Bool(true), "Should not crash even without initialized sender")
