@@ -47,7 +47,7 @@ final class FakeYouTubeService: YouTubeServiceProtocol {
         lastIdentifier = identifier
 
         if let error = nextError {
-            nextError = nil
+            // Don't clear nextError - let it persist for all calls in the test
             throw error
         }
 
@@ -60,12 +60,12 @@ final class FakeYouTubeService: YouTubeServiceProtocol {
         lastUploadPlaylistId = uploadPlaylistId
 
         if let error = nextError {
-            nextError = nil
+            // Don't clear nextError - let it persist for all calls in the test
             throw error
         }
 
         if let status = nextStatus {
-            nextStatus = nil
+            // Don't clear nextStatus - let it persist for all calls in the test
             return status
         }
 

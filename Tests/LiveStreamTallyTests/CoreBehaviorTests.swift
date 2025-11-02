@@ -26,7 +26,6 @@ struct CoreBehaviorTests {
             videoId: "abc123"
         )
 
-        let ndiSpy = NDISpy()
         let prefs = InMemoryPreferences()
         prefs.channelId = "UC12345"
         prefs.cachedChannelId = "UC12345"
@@ -72,7 +71,6 @@ struct CoreBehaviorTests {
             videoId: "abc123"
         )
 
-        let ndiSpy = NDISpy()
         let prefs = InMemoryPreferences()
         prefs.channelId = "UC12345"
         prefs.cachedChannelId = "UC12345"
@@ -205,8 +203,9 @@ struct CoreBehaviorTests {
         // Act - Start monitoring
         await vm.startMonitoring()
 
-        // Wait for first check to complete
-        try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
+        // Note: startMonitoring() awaits the first check, so state should be updated immediately
+        // However, add a small yield to ensure any pending @Published updates have propagated
+        await Task.yield()
 
         // Assert - Initial ON AIR state
         #expect(vm.isLive == true, "Initially should be live")
