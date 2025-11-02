@@ -215,18 +215,30 @@ struct UITestsSuite {
     
     @Test("Should properly format current time")
     @MainActor func testTimeDisplay() async {
-        // Create view model
-        let viewModel = MainViewModel()
-        
+        // Create view model with test dependencies
+        let fakeService = FakeYouTubeService()
+        fakeService.nextStatus = LiveStatus(isLive: false, viewerCount: 0, title: "", videoId: "abc")
+
+        let prefs = InMemoryPreferences()
+        prefs.channelId = "UC12345"
+        prefs.cachedChannelId = "UC12345"
+        prefs.uploadPlaylistId = "UU12345"
+
+        let viewModel = MainViewModel(
+            youtubeService: fakeService,
+            preferences: prefs,
+            isTestMode: true
+        )
+
         // Start monitoring to initialize time
         await viewModel.startMonitoring()
-        
-        // Wait for time to be initialized - this might take a moment
-        try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
-        
+
+        // Wait for time to be initialized
+        try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
+
         // Verify that time is not empty
         #expect(!viewModel.currentTime.isEmpty)
-        
+
         // Verify time format looks correct (h:mm:ss a)
         let timePattern = #"^[0-9]{1,2}:[0-9]{2}:[0-9]{2} [AP]M$"#
         let timeRegex = try! NSRegularExpression(pattern: timePattern)
@@ -234,9 +246,9 @@ struct UITestsSuite {
             in: viewModel.currentTime,
             range: NSRange(viewModel.currentTime.startIndex..., in: viewModel.currentTime)
         )
-        
+
         #expect(!matches.isEmpty, "Time should be in h:mm:ss a format")
-        
+
         // Cleanup
         await viewModel.stopMonitoring()
     }

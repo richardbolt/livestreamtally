@@ -34,14 +34,15 @@ struct CoreBehaviorTests {
 
         let vm = MainViewModel(
             youtubeService: fakeService,
-            preferences: prefs
+            preferences: prefs,
+            isTestMode: true
         )
 
         // Act
         await vm.startMonitoring()
 
         // Give monitoring a moment to complete the first check
-        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+        try? await Task.sleep(nanoseconds: 500_000_000) // 0.1 seconds
 
         // Assert - ViewModel state
         #expect(vm.isLive == true, "ViewModel should show live state")
@@ -79,14 +80,15 @@ struct CoreBehaviorTests {
 
         let vm = MainViewModel(
             youtubeService: fakeService,
-            preferences: prefs
+            preferences: prefs,
+            isTestMode: true
         )
 
         // Act
         await vm.startMonitoring()
 
         // Give monitoring a moment to complete the first check
-        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+        try? await Task.sleep(nanoseconds: 500_000_000) // 0.25 seconds
 
         // Assert - ViewModel state
         #expect(vm.isLive == false, "ViewModel should show not live state")
@@ -117,14 +119,15 @@ struct CoreBehaviorTests {
 
         let vm = MainViewModel(
             youtubeService: fakeService,
-            preferences: prefs
+            preferences: prefs,
+            isTestMode: true
         )
 
         // Act
         await vm.startMonitoring()
 
         // Give monitoring a moment to complete the first check
-        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+        try? await Task.sleep(nanoseconds: 500_000_000) // 0.1 seconds
 
         // Assert - Error is shown
         #expect(vm.error != nil, "ViewModel should show an error")
@@ -153,14 +156,15 @@ struct CoreBehaviorTests {
 
         let vm = MainViewModel(
             youtubeService: fakeService,
-            preferences: prefs
+            preferences: prefs,
+            isTestMode: true
         )
 
         // Act
         await vm.startMonitoring()
 
         // Give monitoring a moment to complete the first check
-        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+        try? await Task.sleep(nanoseconds: 500_000_000) // 0.1 seconds
 
         // Assert - Error is shown
         #expect(vm.error != nil, "ViewModel should show an error")
@@ -194,7 +198,8 @@ struct CoreBehaviorTests {
 
         let vm = MainViewModel(
             youtubeService: fakeService,
-            preferences: prefs
+            preferences: prefs,
+            isTestMode: true
         )
 
         // Act - Start monitoring
@@ -241,12 +246,13 @@ struct CoreBehaviorTests {
 
         let vm = MainViewModel(
             youtubeService: fakeService,
-            preferences: prefs
+            preferences: prefs,
+            isTestMode: true
         )
 
         // Act - Start monitoring with Channel A
         await vm.startMonitoring()
-        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+        try? await Task.sleep(nanoseconds: 500_000_000) // 0.25 seconds
 
         // Assert - Initial check with Channel A
         #expect(fakeService.lastChannelId == "UC_ChannelA", "Should check Channel A initially")

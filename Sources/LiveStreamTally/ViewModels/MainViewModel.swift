@@ -61,6 +61,9 @@ final class MainViewModel: ObservableObject {
     private let clock: any ClockProtocol
     private var timer: Timer?
     private var timePublisher: AnyCancellable?
+
+    // Flag to prevent replacing injected services in tests
+    private let serviceWasInjected: Bool
     
     // Shared date formatter for time updates
     private let timeFormatter: DateFormatter = {
@@ -76,13 +79,15 @@ final class MainViewModel: ObservableObject {
     init(
         youtubeService: (any YouTubeServiceProtocol)? = nil,
         preferences: any PreferencesManagerProtocol,
-        clock: any ClockProtocol = SystemClock()
+        clock: any ClockProtocol = SystemClock(),
+        isTestMode: Bool = false
     ) {
         Logger.debug("MainViewModel.init() called with injected dependencies", category: .main)
 
         self.youtubeService = youtubeService
         self.preferences = preferences
         self.clock = clock
+        self.serviceWasInjected = isTestMode
 
         // Initialize with current values from preferences
         self.channelId = preferences.getChannelId()
@@ -189,8 +194,14 @@ final class MainViewModel: ObservableObject {
     }
     
     @objc private func handleApiKeyChanged() {
+        // Don't replace injected services (used in tests)
+        guard !serviceWasInjected else {
+            Logger.debug("Ignoring API key change - service was injected", category: .main)
+            return
+        }
+
         // Reinitialize YouTubeService with new API key
-        if let apiKey = PreferencesManager.shared.getApiKey() {
+        if let apiKey = preferences.getApiKey() {
             do {
                 // Create a new service and update the cache
                 MainViewModel.cachedYouTubeService = try YouTubeService(apiKey: apiKey)
@@ -263,12 +274,10 @@ final class MainViewModel: ObservableObject {
         await stopMonitoring()
         
         isLoading = true
-        
+
         // Check immediately
-        Task {
-            await checkLiveStatus()
-            isLoading = false
-        }
+        await checkLiveStatus()
+        isLoading = false
         
         // Get initial interval from preferences
         let initialInterval = preferences.getNotLiveCheckInterval()
