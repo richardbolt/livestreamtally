@@ -17,14 +17,14 @@ import os
 // Mark the GoogleAPI types as implicitly Sendable for migration purposes
 @preconcurrency import GoogleAPIClientForREST_YouTube
 
-struct LiveStatus {
+struct LiveStatus: Sendable {
     let isLive: Bool
     let viewerCount: Int
     let title: String
     let videoId: String
 }
 
-enum YouTubeError: Error {
+enum YouTubeError: Error, Sendable {
     case invalidChannelId
     case invalidApiKey
     case quotaExceeded
@@ -32,9 +32,26 @@ enum YouTubeError: Error {
     case unknownError
 }
 
+extension YouTubeError: LocalizedError {
+    var errorDescription: String? {
+        switch self {
+        case .invalidApiKey:
+            return "Invalid YouTube API key. Please check your API key in Settings."
+        case .invalidChannelId:
+            return "Invalid YouTube channel ID or handle. Please check your channel ID in Settings."
+        case .quotaExceeded:
+            return "YouTube API quota exceeded. Please try again later."
+        case .networkError:
+            return "Network error. Please check your internet connection and try again."
+        case .unknownError:
+            return "An unexpected error occurred. Please try again."
+        }
+    }
+}
+
 // Using @MainActor to ensure isolation for Swift 6.1 compatibility
 @MainActor
-class YouTubeService {
+class YouTubeService: YouTubeServiceProtocol {
     private let service: GTLRYouTubeService
     private var currentLiveVideoId: String?
     
@@ -50,21 +67,22 @@ class YouTubeService {
     
     private func executeQuery<T: GTLRObject>(_ query: GTLRQuery) async throws -> T {
         Logger.debug("Calling YouTube API: \(String(describing: type(of: query)))", category: .youtube)
-        
+
         return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<T, Error>) in
             // Use a local variable to capture service and avoid self capture
             let localService = service
             localService.executeQuery(query) { (ticket: GTLRServiceTicket, response: Any?, error: Error?) in
                 if let error = error {
-                    continuation.resume(throwing: error)
+                    let mappedError = self.mapError(error)
+                    continuation.resume(throwing: mappedError)
                     return
                 }
-                
+
                 guard let response = response as? T else {
                     continuation.resume(throwing: YouTubeError.unknownError)
                     return
                 }
-                
+
                 // Make a properly isolated copy of the response by creating a task
                 // This is necessary to avoid data races when passing data across actor boundaries
                 Task { @MainActor in
@@ -177,26 +195,72 @@ class YouTubeService {
     
     private func mapError(_ error: Error) -> YouTubeError {
         let nsError = error as NSError
-        
-        if nsError.domain == kGTLRErrorObjectDomain {
-            if let errorJSON = nsError.userInfo["error"] as? [String: Any],
-               let errors = errorJSON["errors"] as? [[String: Any]],
-               let firstError = errors.first,
-               let reason = firstError["reason"] as? String {
-                
-                switch reason {
-                case "quotaExceeded":
-                    return .quotaExceeded
-                case "invalidChannelId":
-                    return .invalidChannelId
-                case "invalidApiKey":
-                    return .invalidApiKey
-                default:
-                    return .unknownError
+
+        // Debug logging to understand error structure
+        Logger.debug("=== Error Debug Info ===", category: .youtube)
+        Logger.debug("Domain: \(nsError.domain)", category: .youtube)
+        Logger.debug("Code: \(nsError.code)", category: .youtube)
+        Logger.debug("UserInfo keys: \(Array(nsError.userInfo.keys))", category: .youtube)
+
+        // Extract GTLRErrorObject from userInfo using the correct key
+        if nsError.domain == kGTLRErrorObjectDomain,
+           let structuredError = nsError.userInfo[kGTLRStructuredErrorKey] as? GTLRErrorObject {
+
+            Logger.debug("GTLRErrorObject found - code: \(structuredError.code?.intValue ?? 0), message: \(structuredError.message ?? "none")", category: .youtube)
+
+            // Check HTTP status code first - 400 with certain messages indicates invalid API key
+            let httpCode = structuredError.code?.intValue ?? 0
+            let message = structuredError.message?.lowercased() ?? ""
+
+            if httpCode == 400 && (message.contains("api key") || message.contains("key not valid")) {
+                Logger.debug("Detected invalid API key from HTTP 400 + message content", category: .youtube)
+                return .invalidApiKey
+            }
+
+            if let errors = structuredError.errors {
+                Logger.debug("Errors array: \(errors.map { "[\($0.domain ?? "?"):\($0.reason ?? "?")] \($0.message ?? "")" })", category: .youtube)
+
+                // Get the reason from the first error
+                if let firstError = errors.first,
+                   let reason = firstError.reason {
+
+                    // Check error message for API key issues
+                    let errorMessage = firstError.message?.lowercased() ?? ""
+
+                    switch reason {
+                    case "keyInvalid", "keyExpired":
+                        return .invalidApiKey
+                    case "badRequest":
+                        // badRequest with API key message = invalid API key
+                        if errorMessage.contains("api key") || errorMessage.contains("key not valid") {
+                            Logger.debug("Detected invalid API key from badRequest + message", category: .youtube)
+                            return .invalidApiKey
+                        }
+                        // badRequest without API key message = unknown error
+                        Logger.debug("badRequest without API key message", category: .youtube)
+                        return .unknownError
+                    case "quotaExceeded":
+                        return .quotaExceeded
+                    case "invalidChannelId":
+                        return .invalidChannelId
+                    default:
+                        Logger.debug("Unmapped API error reason: \(reason)", category: .youtube)
+                        return .unknownError
+                    }
                 }
             }
+
+            // If we have a GTLRErrorObject but couldn't extract reason
+            return .unknownError
         }
-        
+
+        // Check for network-level errors (like no internet connection)
+        if nsError.domain == NSURLErrorDomain {
+            return .networkError
+        }
+
+        // For any other errors, return network error as a fallback
+        Logger.debug("Unhandled error domain: \(nsError.domain)", category: .youtube)
         return .networkError
     }
     
@@ -209,39 +273,39 @@ class YouTubeService {
 
 // MARK: - Response Models
 
-struct SearchResponse: Codable {
+struct SearchResponse: Codable, Sendable {
     let items: [SearchItem]
 }
 
-struct SearchItem: Codable {
+struct SearchItem: Codable, Sendable {
     let id: VideoID
 }
 
-struct VideoID: Codable {
+struct VideoID: Codable, Sendable {
     let videoId: String
 }
 
-struct VideoResponse: Codable {
+struct VideoResponse: Codable, Sendable {
     let items: [Video]
 }
 
-struct Video: Codable {
+struct Video: Codable, Sendable {
     let snippet: VideoSnippet
     let liveStreamingDetails: LiveStreamingDetails?
 }
 
-struct VideoSnippet: Codable {
+struct VideoSnippet: Codable, Sendable {
     let title: String
 }
 
-struct LiveStreamingDetails: Codable {
+struct LiveStreamingDetails: Codable, Sendable {
     let concurrentViewers: String?
 }
 
-struct ChannelResponse: Codable {
+struct ChannelResponse: Codable, Sendable {
     let items: [Channel]
 }
 
-struct Channel: Codable {
+struct Channel: Codable, Sendable {
     let id: String
 } 

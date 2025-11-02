@@ -15,7 +15,8 @@ import os
 import NDIWrapper
 import SwiftUI
 
-class NDIBroadcaster: @unchecked Sendable {
+@MainActor
+class NDIBroadcaster: NDIBroadcasterProtocol {
     private var sender: NDIlib_send_instance_t?
     private var isInitialized = false
     private var viewToCapture: NSView?
@@ -30,24 +31,14 @@ class NDIBroadcaster: @unchecked Sendable {
         isInitialized = true
     }
     
-    deinit {
-        // Can't call @MainActor methods directly from deinit
-        let wasInitialized = isInitialized
-        if let sender = self.sender {
-            NDIlib_send_destroy(sender)
-        }
-        viewToCapture = nil
-        viewModel = nil
-        self.sender = nil
-        
-        if wasInitialized {
-            NDIlib_destroy()
-            Logger.info("NDI destroyed", category: .app)
-        }
+    nonisolated deinit {
+        // Deinit is nonisolated and cannot access actor-isolated properties
+        // The NDI cleanup will happen in the stop() method when called
+        // This is the correct approach for @MainActor classes with external resources
+        Logger.info("NDI broadcaster deallocated", category: .app)
     }
     
-    @MainActor
-    func start(name: String, viewModel: MainViewModel) {
+    func start(name: String, viewModel: MainViewModel) async {
         guard isInitialized else {
             Logger.error("Cannot start NDI - not initialized", category: .app)
             return
@@ -104,8 +95,7 @@ class NDIBroadcaster: @unchecked Sendable {
         }
     }
     
-    @MainActor
-    func stop() {
+    func stop() async {
         viewToCapture = nil
         viewModel = nil
         if let sender = sender {
@@ -113,35 +103,37 @@ class NDIBroadcaster: @unchecked Sendable {
             self.sender = nil
             Logger.info("NDI broadcast stopped", category: .app)
         }
+
+        // Clean up NDI library if it was initialized
+        if isInitialized {
+            NDIlib_destroy()
+            isInitialized = false
+            Logger.info("NDI destroyed", category: .app)
+        }
     }
     
-    func sendTally(isLive: Bool, viewerCount: Int, title: String) {
+    func sendTally(isLive: Bool, viewerCount: Int, title: String) async {
         guard let sender = sender else {
             Logger.error("Cannot send tally - NDI sender not initialized", category: .app)
             return
         }
-        
+
         Logger.debug("Sending NDI tally - isLive: \(isLive), viewers: \(viewerCount), title: \(title)", category: .app)
-        
-        var metadata = "<ndi_metadata "
-        metadata += "isLive=\"\(isLive ? "true" : "false")\" "
-        metadata += "viewerCount=\"\(viewerCount)\" "
-        metadata += "title=\"\(title.replacingOccurrences(of: "\"", with: "&quot;"))\" "
-        metadata += "/>"
-        
+
+        let metadata = NDIHelpers.formatMetadata(isLive: isLive, viewerCount: viewerCount, title: title)
+
         metadata.withCString { cString in
             var frame = NDIlib_metadata_frame_t()
             frame.p_data = UnsafeMutablePointer(mutating: cString)
             frame.length = Int32(metadata.utf8.count)
             frame.timecode = Int64(Date().timeIntervalSince1970 * 1000)
-            
+
             NDIlib_send_send_metadata(sender, &frame)
             Logger.debug("NDI metadata frame sent successfully", category: .app)
         }
     }
     
-    @MainActor
-    func sendFrame() {
+    func sendFrame() async {
         guard let sender = sender,
               let viewToCapture = viewToCapture else {
             Logger.error("No NDI sender or view available", category: .app)
@@ -190,25 +182,12 @@ class NDIBroadcaster: @unchecked Sendable {
         // Clear the context with a black background
         context.setFillColor(CGColor(red: 0, green: 0, blue: 0, alpha: 1))
         context.fill(CGRect(x: 0, y: 0, width: targetWidth, height: targetHeight))
-        
+
         // Calculate aspect-preserving dimensions
-        let sourceAspect = Double(cgImage.width) / Double(cgImage.height)
-        let targetAspect = Double(targetWidth) / Double(targetHeight)
-        
-        var drawRect = CGRect(x: 0, y: 0, width: targetWidth, height: targetHeight)
-        
-        if sourceAspect > targetAspect {
-            // Source is wider - fit to width
-            let newHeight = Double(targetWidth) / sourceAspect
-            let yOffset = (Double(targetHeight) - newHeight) / 2
-            drawRect = CGRect(x: 0, y: yOffset, width: Double(targetWidth), height: newHeight)
-        } else {
-            // Source is taller - fit to height
-            let newWidth = Double(targetHeight) * sourceAspect
-            let xOffset = (Double(targetWidth) - newWidth) / 2
-            drawRect = CGRect(x: xOffset, y: 0, width: newWidth, height: Double(targetHeight))
-        }
-        
+        let sourceSize = CGSize(width: cgImage.width, height: cgImage.height)
+        let targetSize = CGSize(width: targetWidth, height: targetHeight)
+        let drawRect = NDIHelpers.calculateAspectRatioFit(sourceSize: sourceSize, targetSize: targetSize)
+
         // Draw with proper aspect ratio
         context.draw(cgImage, in: drawRect)
         

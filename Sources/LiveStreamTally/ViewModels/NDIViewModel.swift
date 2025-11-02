@@ -70,15 +70,19 @@ class NDIViewModel: ObservableObject {
         
         Logger.info("Starting NDI streaming", category: .app)
         
-        broadcaster.start(name: "Live Stream Tally", viewModel: mainViewModel)
+        Task {
+            await broadcaster.start(name: "Live Stream Tally", viewModel: mainViewModel)
+        }
         isStreaming = true
-        
+
         // Use Combine publisher for more efficient frame sending
         framePublisher = Timer.publish(every: 1.0/30.0, on: .main, in: .default)
             .autoconnect()
             .sink { [weak self] _ in
                 guard let self = self else { return }
-                self.broadcaster.sendFrame()
+                Task {
+                    await self.broadcaster.sendFrame()
+                }
             }
         
         // Send initial tally data when starting stream
@@ -96,8 +100,10 @@ class NDIViewModel: ObservableObject {
         framePublisher = nil
         
         // Stop the broadcaster
-        broadcaster.stop()
-        
+        Task {
+            await broadcaster.stop()
+        }
+
         // Update state
         isStreaming = false
     }
@@ -105,14 +111,21 @@ class NDIViewModel: ObservableObject {
     @MainActor
     func updateTally() {
         guard isStreaming else { return }
-        
-        Logger.debug("Updating NDI tally with isLive: \(mainViewModel!.isLive), viewers: \(mainViewModel!.viewerCount)", category: .app)
-        
-        broadcaster.sendTally(
-            isLive: mainViewModel!.isLive,
-            viewerCount: mainViewModel!.viewerCount,
-            title: mainViewModel!.title
-        )
+
+        guard let mainViewModel = mainViewModel else {
+            Logger.warning("Cannot update tally: mainViewModel is nil", category: .app)
+            return
+        }
+
+        Logger.debug("Updating NDI tally with isLive: \(mainViewModel.isLive), viewers: \(mainViewModel.viewerCount)", category: .app)
+
+        Task {
+            await broadcaster.sendTally(
+                isLive: mainViewModel.isLive,
+                viewerCount: mainViewModel.viewerCount,
+                title: mainViewModel.title
+            )
+        }
     }
 }
 

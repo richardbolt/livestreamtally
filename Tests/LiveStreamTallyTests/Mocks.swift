@@ -51,48 +51,45 @@ class MockYouTubeService {
 
 // MARK: - Mock NDI Broadcaster
 
+@MainActor
 class MockNDIBroadcaster {
     var isStarted = false
     var lastMetadata: String?
     var lastIsLive = false
     var lastViewerCount = 0
     var lastTitle = ""
-    
+    var lastOutputName: String?
+
     // Track method calls
     var startCalled = false
     var stopCalled = false
     var sendTallyCalled = false
     var sendFrameCalled = false
-    
+
     init() {}
-    
-    func start(name: String, viewModel: MainViewModel) {
+
+    func start(name: String, viewModel: MainViewModel) async {
         startCalled = true
         isStarted = true
+        lastOutputName = name
     }
     
-    func stop() {
+    func stop() async {
         stopCalled = true
         isStarted = false
     }
     
-    func sendTally(isLive: Bool, viewerCount: Int, title: String) {
+    func sendTally(isLive: Bool, viewerCount: Int, title: String) async {
         sendTallyCalled = true
         lastIsLive = isLive
         lastViewerCount = viewerCount
         lastTitle = title
-        
-        // Build the metadata string like the real implementation
-        var metadata = "<ndi_metadata "
-        metadata += "isLive=\"\(isLive ? "true" : "false")\" "
-        metadata += "viewerCount=\"\(viewerCount)\" "
-        metadata += "title=\"\(title.replacingOccurrences(of: "\"", with: "&quot;"))\" "
-        metadata += "/>"
-        
-        lastMetadata = metadata
+
+        // Use NDIHelpers to format metadata (same as real implementation)
+        lastMetadata = NDIHelpers.formatMetadata(isLive: isLive, viewerCount: viewerCount, title: title)
     }
     
-    func sendFrame() {
+    func sendFrame() async {
         sendFrameCalled = true
     }
 }
@@ -115,30 +112,30 @@ class MockPreferencesManager {
     
     func setChannelId(_ value: String) {
         channelId = value
-        NotificationCenter.default.post(name: PreferencesManager.Notifications.channelChanged, object: nil)
+        NotificationCenter.default.post(name: PreferencesManager.NotificationNames.channelChanged, object: nil)
     }
-    
+
     func getApiKey() -> String? {
         return apiKey
     }
-    
+
     func setApiKey(_ value: String) {
         apiKey = value
-        NotificationCenter.default.post(name: PreferencesManager.Notifications.apiKeyChanged, object: nil)
+        NotificationCenter.default.post(name: PreferencesManager.NotificationNames.apiKeyChanged, object: nil)
     }
-    
+
     func getLiveCheckInterval() -> TimeInterval {
         return liveRefreshInterval
     }
-    
+
     func getNotLiveCheckInterval() -> TimeInterval {
         return notLiveRefreshInterval
     }
-    
+
     func updateIntervals(liveInterval: TimeInterval, notLiveInterval: TimeInterval) {
         liveRefreshInterval = liveInterval
         notLiveRefreshInterval = notLiveInterval
-        NotificationCenter.default.post(name: PreferencesManager.Notifications.intervalChanged, object: nil)
+        NotificationCenter.default.post(name: PreferencesManager.NotificationNames.intervalChanged, object: nil)
     }
     
     func getNDIOutputName() -> String {
