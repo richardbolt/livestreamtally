@@ -196,56 +196,73 @@ class NDIBroadcaster: NDIBroadcasterProtocol {
         viewToCapture.layoutSubtreeIfNeeded()
         viewToCapture.displayIfNeeded()
 
-        // First capture at view's actual size
-        guard let bitmap = viewToCapture.bitmapImageRepForCachingDisplay(in: viewToCapture.bounds) else {
-            Logger.error("Failed to create bitmap representation", category: .app)
-            return
-        }
-
-        viewToCapture.cacheDisplay(in: viewToCapture.bounds, to: bitmap)
-
-        guard let cgImage = bitmap.cgImage else {
-            Logger.error("Failed to get CGImage from bitmap", category: .app)
-            return
-        }
-
+        // Define target dimensions outside autoreleasepool (needed for NDI frame setup)
         let targetWidth = NDIConstants.videoWidth
         let targetHeight = NDIConstants.videoHeight
         let targetBytesPerRow = NDIConstants.bytesPerRow
 
-        let colorSpace = CGColorSpaceCreateDeviceRGB()
-        let bitmapInfo = CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
+        // Wrap bitmap creation and CGImage processing in autoreleasepool
+        // to force immediate deallocation of 3.5MB NSBitmapImageRep objects
+        // that were accumulating at 30fps (primary cause of 60MB -> 4GB leak)
+        // Returns true if frame processing succeeded, false on error
+        let frameReady = autoreleasepool { () -> Bool in
+            // First capture at view's actual size
+            guard let bitmap = viewToCapture.bitmapImageRepForCachingDisplay(in: viewToCapture.bounds) else {
+                Logger.error("Failed to create bitmap representation", category: .app)
+                return false
+            }
 
-        // Clear buffer for new frame - ensures no artifacts from previous frames
-        // This is a memset operation, which is very fast compared to allocation/deallocation
-        buffer.initialize(repeating: 0, count: bufferSize)
+            viewToCapture.cacheDisplay(in: viewToCapture.bounds, to: bitmap)
 
-        guard let context = CGContext(data: buffer,
-                                    width: targetWidth,
-                                    height: targetHeight,
-                                    bitsPerComponent: 8,
-                                    bytesPerRow: targetBytesPerRow,
-                                    space: colorSpace,
-                                    bitmapInfo: bitmapInfo) else {
-            Logger.error("Failed to create CGContext", category: .app)
+            guard let cgImage = bitmap.cgImage else {
+                Logger.error("Failed to get CGImage from bitmap", category: .app)
+                return false
+            }
+
+            let colorSpace = CGColorSpaceCreateDeviceRGB()
+            let bitmapInfo = CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
+
+            // Clear buffer for new frame - ensures no artifacts from previous frames
+            // This is a memset operation, which is very fast compared to allocation/deallocation
+            buffer.initialize(repeating: 0, count: bufferSize)
+
+            guard let context = CGContext(data: buffer,
+                                        width: targetWidth,
+                                        height: targetHeight,
+                                        bitsPerComponent: 8,
+                                        bytesPerRow: targetBytesPerRow,
+                                        space: colorSpace,
+                                        bitmapInfo: bitmapInfo) else {
+                Logger.error("Failed to create CGContext", category: .app)
+                return false
+            }
+
+            // Clear the context with a black background
+            context.setFillColor(CGColor(red: 0, green: 0, blue: 0, alpha: 1))
+            context.fill(CGRect(x: 0, y: 0, width: targetWidth, height: targetHeight))
+
+            // Calculate aspect-preserving dimensions
+            let sourceSize = CGSize(width: cgImage.width, height: cgImage.height)
+            let targetSize = CGSize(width: targetWidth, height: targetHeight)
+            let drawRect = NDIHelpers.calculateAspectRatioFit(sourceSize: sourceSize, targetSize: targetSize)
+
+            // Draw with proper aspect ratio
+            context.draw(cgImage, in: drawRect)
+
+            return true
+        }
+        // NSBitmapImageRep, CGImage, CGContext, and all autoreleased objects
+        // are deallocated here, preventing the 3.5MB per-frame accumulation
+
+        // Exit if frame processing failed
+        guard frameReady else {
             return
         }
 
-        // Clear the context with a black background
-        context.setFillColor(CGColor(red: 0, green: 0, blue: 0, alpha: 1))
-        context.fill(CGRect(x: 0, y: 0, width: targetWidth, height: targetHeight))
-
-        // Calculate aspect-preserving dimensions
-        let sourceSize = CGSize(width: cgImage.width, height: cgImage.height)
-        let targetSize = CGSize(width: targetWidth, height: targetHeight)
-        let drawRect = NDIHelpers.calculateAspectRatioFit(sourceSize: sourceSize, targetSize: targetSize)
-
-        // Draw with proper aspect ratio
-        context.draw(cgImage, in: drawRect)
-
+        // NDI send call is outside autoreleasepool to avoid any issues
         var videoFrame = NDIlib_video_frame_v2_t()
-        videoFrame.xres = Int32(NDIConstants.videoWidth)
-        videoFrame.yres = Int32(NDIConstants.videoHeight)
+        videoFrame.xres = Int32(targetWidth)
+        videoFrame.yres = Int32(targetHeight)
         videoFrame.FourCC = NDIlib_FourCC_type_BGRA
         videoFrame.frame_rate_N = NDIConstants.frameRateNumerator
         videoFrame.frame_rate_D = NDIConstants.frameRateDenominator

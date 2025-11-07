@@ -61,6 +61,9 @@ final class MainViewModel: ObservableObject {
     private var statusCheckPublisher: AnyCancellable?
     private var timePublisher: AnyCancellable?
 
+    // Flag to prevent concurrent Task accumulation in polling timer
+    private var isCheckingStatus = false
+
     // Flag to prevent replacing injected services in tests
     private let serviceWasInjected: Bool
 
@@ -258,6 +261,14 @@ final class MainViewModel: ObservableObject {
         statusCheckPublisher = Timer.publish(every: interval, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
+                guard let self = self else { return }
+
+                // Skip if a status check is already in progress
+                guard !self.isCheckingStatus else {
+                    Logger.warning("Skipping status check - previous check still in progress", category: .main)
+                    return
+                }
+
                 Task { [weak self] in
                     await self?.checkLiveStatus()
                 }
@@ -292,6 +303,14 @@ final class MainViewModel: ObservableObject {
         statusCheckPublisher = Timer.publish(every: initialInterval, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
+                guard let self = self else { return }
+
+                // Skip if a status check is already in progress
+                guard !self.isCheckingStatus else {
+                    Logger.warning("Skipping status check - previous check still in progress", category: .main)
+                    return
+                }
+
                 Task { [weak self] in
                     await self?.checkLiveStatus()
                 }
@@ -305,6 +324,10 @@ final class MainViewModel: ObservableObject {
         statusCheckPublisher?.cancel()
         statusCheckPublisher = nil
         stopTimeUpdates()
+
+        // Reset the checking flag to prevent stuck state when stopping during active check
+        isCheckingStatus = false
+
         Logger.info("Monitoring stopped", category: .main)
     }
 
@@ -336,6 +359,10 @@ final class MainViewModel: ObservableObject {
 
     private func checkLiveStatus() async {
         guard let youtubeService = youtubeService else { return }
+
+        // Set flag to prevent concurrent checks
+        isCheckingStatus = true
+        defer { isCheckingStatus = false }
 
         // Create a local copy of the service to avoid isolation issues
         let service = youtubeService
