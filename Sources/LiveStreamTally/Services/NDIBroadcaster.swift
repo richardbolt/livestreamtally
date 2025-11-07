@@ -24,7 +24,7 @@ class NDIBroadcaster: NDIBroadcasterProtocol {
 
     // MARK: - Buffer Pooling
 
-    /// Reusable frame buffer to avoid allocation overhead at 30fps (105 MB/sec churn)
+    /// Reusable frame buffer to avoid allocation overhead at 1fps (3.5 MB/sec throughput)
     /// Allocated once during start(), reused for all frames, deallocated in stop()
     private var frameBuffer: UnsafeMutablePointer<UInt8>?
 
@@ -203,7 +203,7 @@ class NDIBroadcaster: NDIBroadcasterProtocol {
 
         // Wrap bitmap creation and CGImage processing in autoreleasepool
         // to force immediate deallocation of 3.5MB NSBitmapImageRep objects
-        // that were accumulating at 30fps (primary cause of 60MB -> 4GB leak)
+        // that were accumulating at 1fps (previously occurred at 30fps causing 60MB -> 4GB leak)
         // Returns true if frame processing succeeded, false on error
         let frameReady = autoreleasepool { () -> Bool in
             // First capture at view's actual size
@@ -252,7 +252,7 @@ class NDIBroadcaster: NDIBroadcasterProtocol {
             return true
         }
         // NSBitmapImageRep, CGImage, CGContext, and all autoreleased objects
-        // are deallocated here, preventing the 3.5MB per-frame accumulation
+        // are deallocated here, preventing per-frame accumulation
 
         // Exit if frame processing failed
         guard frameReady else {

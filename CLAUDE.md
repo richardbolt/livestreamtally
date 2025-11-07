@@ -66,8 +66,9 @@ The app uses a centralized state management approach:
 ### NDI Integration
 - **NDIBroadcaster**: C/Swift interop with NDI SDK via `NDIWrapper` system library
 - **NDIViewModel**: Coordinates between MainViewModel and NDIBroadcaster
-- Renders SwiftUI ContentView to video frames at 720p (1280x720, 30fps, 16:9 aspect)
+- Renders SwiftUI ContentView to video frames at 720p (1280x720, 1fps, 16:9 aspect)
 - Sends metadata frames with live status, viewer count, and title
+- Frame rate optimized to 1Hz to match content update frequency (time display updates every second)
 
 ### YouTube API Integration
 - **YouTubeService** (`@MainActor`):
@@ -130,8 +131,9 @@ The app uses a centralized state management approach:
 - NDI SDK installed at `/Library/NDI SDK for Apple/lib/macOS` (development requirement only)
 - Swift wrapper module at `Sources/NDIWrapper/`
 - All NDI calls must happen on main thread (use `@MainActor`)
-- Video frames: BGRA format, progressive scan
+- Video frames: BGRA format, progressive scan, 1fps (1Hz)
 - Metadata: XML-like string format embedded in `NDIlib_metadata_frame_t`
+- Frame rate: Optimized to 1Hz to match content update frequency and minimize CPU usage
 
 ## Dependencies
 
