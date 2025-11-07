@@ -21,9 +21,16 @@ make logs               # Stream app logs in real-time
 make test                           # Run all tests (requires NDI SDK)
 ./run_tests.sh YouTubeServiceTests  # Run specific test suite
 swift test --filter TestName        # Run single test method
+
+# Run YouTube API integration tests with real credentials
+YOUTUBE_API_KEY=your_api_key \
+YOUTUBE_TEST_CHANNEL_ID=UCxxxxxxxxxx \
+swift test --filter YouTubeServiceTests.integration
 ```
 
 Available test targets: `YouTubeService`, `PreferencesManager`, `MainViewModel`, `UI`, `NDIBroadcaster`, `ParameterizedTests`
+
+**Note**: YouTube API integration tests are conditionally enabled only when both `YOUTUBE_API_KEY` and `YOUTUBE_TEST_CHANNEL_ID` environment variables are set. Without these, the tests will be gracefully skipped.
 
 ### Distribution Builds
 ```bash
@@ -106,9 +113,11 @@ The app uses a centralized state management approach:
 ### Testing Considerations
 - Uses Swift Testing framework (not XCTest)
 - Assertions use `#expect()` and `#require()` syntax
-- Many tests are `.disabled()` because they require real API keys or NDI hardware
+- Integration tests use `.enabled(if:)` trait to conditionally run when required resources are available
 - Mock implementations available in `Tests/LiveStreamTallyTests/Mocks.swift`
 - All test methods interacting with `@MainActor` classes must be `async`
+- YouTube API integration tests require `YOUTUBE_API_KEY` and `YOUTUBE_TEST_CHANNEL_ID` environment variables
+- NDI integration tests require NDI runtime at `/Library/NDI SDK for Apple/lib/macOS/libndi.dylib`
 
 ## Common Development Tasks
 
