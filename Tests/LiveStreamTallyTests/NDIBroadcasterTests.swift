@@ -12,13 +12,22 @@ import Foundation
 @Suite("NDI Broadcaster Tests")
 struct NDIBroadcasterTests {
 
+    // MARK: - Helper Functions
+
+    /// Checks if the NDI runtime is available on this system
+    /// - Returns: true if the NDI dylib exists at the expected location
+    static func isNDIRuntimeAvailable() -> Bool {
+        let ndiPath = "/Library/NDI SDK for Apple/lib/macOS/libndi.dylib"
+        return FileManager.default.fileExists(atPath: ndiPath)
+    }
+
     // MARK: - Initialization Tests
 
     @Test("NDIBroadcaster initializes without crashing")
     @MainActor
     func ndiBroadcaster_initializes() {
         // Act
-        let broadcaster = NDIBroadcaster()
+        _ = NDIBroadcaster()
 
         // Assert - Just verify it doesn't crash
         #expect(Bool(true), "NDIBroadcaster should initialize without crashing")
@@ -159,13 +168,12 @@ struct NDIBroadcasterTests {
         // (MockNDIBroadcaster could be enhanced to track call count)
     }
 
-    // MARK: - Real NDI Tests (Disabled)
+    // MARK: - Real NDI Tests (Conditionally Enabled)
 
-    @Test(.disabled("Requires NDI runtime"))
+    @Test(.enabled(if: isNDIRuntimeAvailable(), "Requires NDI runtime at /Library/NDI SDK for Apple/lib/macOS/libndi.dylib"))
     @MainActor
     func real_ndi_sendTally_does_not_crash() async {
-        // This test is disabled because it requires the NDI runtime
-        // to be installed and available
+        // This test only runs when the NDI runtime is installed and available
 
         // Arrange
         let broadcaster = NDIBroadcaster()
@@ -177,12 +185,12 @@ struct NDIBroadcasterTests {
         #expect(Bool(true), "Should not crash even without initialized sender")
     }
 
-    @Test(.disabled("Requires NDI runtime and main window"))
+    @Test(.enabled(if: isNDIRuntimeAvailable(), "Requires NDI runtime at /Library/NDI SDK for Apple/lib/macOS/libndi.dylib"))
     @MainActor
     func real_ndi_start_requires_window() async {
-        // This test is disabled because it requires:
-        // 1. NDI runtime to be installed
-        // 2. A main application window to exist
+        // This test only runs when the NDI runtime is installed and available
+        // Note: This may still not fully function without a main application window,
+        // but it should at least not crash during initialization
 
         // Arrange
         let broadcaster = NDIBroadcaster()
@@ -198,10 +206,8 @@ struct NDIBroadcasterTests {
         await broadcaster.start(name: "TestOutput", viewModel: viewModel)
 
         // Assert
-        // In a real test environment with NDI and a window, we would verify:
-        // - The broadcaster starts successfully
-        // - The sender is created
-        // - The view to capture is set
+        // In a test environment without a full application window, the broadcaster
+        // may not fully initialize, but it should handle this gracefully
         #expect(Bool(true), "Start should complete without crashing")
 
         // Clean up

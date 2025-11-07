@@ -13,6 +13,29 @@ import Foundation
 struct YouTubeServiceTests {
     private let testApiKey = "test_api_key_12345"
 
+    // MARK: - Helper Functions
+
+    /// Checks if YouTube API integration tests can run by verifying environment variables
+    /// - Returns: true if both YOUTUBE_API_KEY and YOUTUBE_TEST_CHANNEL_ID are set
+    static func isYouTubeAPIAvailable() -> Bool {
+        let apiKey = ProcessInfo.processInfo.environment["YOUTUBE_API_KEY"]
+        let channelId = ProcessInfo.processInfo.environment["YOUTUBE_TEST_CHANNEL_ID"]
+
+        return !(apiKey?.isEmpty ?? true) && !(channelId?.isEmpty ?? true)
+    }
+
+    /// Gets the YouTube API key from environment variables
+    /// - Returns: The API key if available, nil otherwise
+    static func getYouTubeAPIKey() -> String? {
+        return ProcessInfo.processInfo.environment["YOUTUBE_API_KEY"]
+    }
+
+    /// Gets the test channel ID from environment variables
+    /// - Returns: The channel ID if available, nil otherwise
+    static func getTestChannelID() -> String? {
+        return ProcessInfo.processInfo.environment["YOUTUBE_TEST_CHANNEL_ID"]
+    }
+
     // MARK: - Initialization Tests
 
     @Test("Initialization with empty API key throws error")
@@ -30,6 +53,34 @@ struct YouTubeServiceTests {
 
         // Verify service was created (no error thrown)
         #expect(Bool(true), "Should be able to create YouTubeService with valid API key")
+    }
+
+    // MARK: - Performance Tests
+
+    @Test("YouTubeService creation performance")
+    @MainActor
+    func measureServiceCreationTime() async throws {
+        let iterations = 100
+        var totalDuration: TimeInterval = 0
+
+        for _ in 0..<iterations {
+            let start = Date()
+            _ = try await YouTubeService(apiKey: testApiKey)
+            totalDuration += Date().timeIntervalSince(start)
+        }
+
+        let averageDuration = totalDuration / Double(iterations)
+        let averageMs = averageDuration * 1000
+
+        print("=== YouTubeService Creation Performance ===")
+        print("Iterations: \(iterations)")
+        print("Total time: \(String(format: "%.2f", totalDuration * 1000))ms")
+        print("Average creation time: \(String(format: "%.4f", averageMs))ms")
+        print("===========================================")
+
+        // Service creation should be fast (< 100ms per creation)
+        // If this test fails, caching might be beneficial
+        #expect(averageDuration < 0.1, "Service creation should be fast (< 100ms average)")
     }
 
     // MARK: - Cache Behavior Tests
@@ -188,38 +239,62 @@ struct YouTubeServiceTests {
         #expect(status.title.isEmpty)
     }
 
-    // MARK: - Integration Test Documentation
+    // MARK: - Integration Tests
 
-    // The following integration tests would require real API keys and are disabled:
+    // The following integration tests require real YouTube API credentials.
+    // Set environment variables YOUTUBE_API_KEY and YOUTUBE_TEST_CHANNEL_ID to enable.
 
-    @Test(.disabled("Requires real API key"))
+    @Test(.enabled(if: isYouTubeAPIAvailable(), "Requires YOUTUBE_API_KEY and YOUTUBE_TEST_CHANNEL_ID environment variables"))
     @MainActor
     func integration_checkLiveStatus_with_real_api() async throws {
-        // This test would verify the full flow with a real API key:
+        // This test verifies the full flow with a real API key:
         // 1. Initialize service with real API key
         // 2. Resolve a real channel ID
         // 3. Check live status
         // 4. Verify response structure
         //
-        // To run: Replace testApiKey with real key and remove .disabled()
+        // To run: Set YOUTUBE_API_KEY and YOUTUBE_TEST_CHANNEL_ID environment variables
+        // Example: YOUTUBE_API_KEY=your_key YOUTUBE_TEST_CHANNEL_ID=UC... swift test
 
-        let service = try await YouTubeService(apiKey: testApiKey)
-        let (channelId, playlistId) = try await service.resolveChannelIdentifier("UC...")
+        guard let apiKey = Self.getYouTubeAPIKey(),
+              let testChannelId = Self.getTestChannelID() else {
+            Issue.record("Environment variables not set despite isYouTubeAPIAvailable() returning true")
+            return
+        }
+
+        let service = try await YouTubeService(apiKey: apiKey)
+        let (channelId, playlistId) = try await service.resolveChannelIdentifier(testChannelId)
+
+        // Verify we got valid IDs back
+        #expect(!channelId.isEmpty, "Channel ID should not be empty")
+        #expect(!playlistId.isEmpty, "Playlist ID should not be empty")
+        #expect(channelId.hasPrefix("UC"), "Channel ID should start with UC")
+        #expect(playlistId.hasPrefix("UU"), "Upload playlist ID should start with UU")
+
         let status = try await service.checkLiveStatus(channelId: channelId, uploadPlaylistId: playlistId)
 
-        #expect(!status.videoId.isEmpty)
-        // isLive can be true or false depending on actual channel state
+        #expect(!status.videoId.isEmpty, "Video ID should not be empty")
+        // Note: isLive can be true or false depending on actual channel state at test time
+        // We just verify the structure is valid
+        print("Integration test result - isLive: \(status.isLive), viewerCount: \(status.viewerCount), title: '\(status.title)'")
     }
 
-    @Test(.disabled("Requires real API key"))
+    @Test(.enabled(if: isYouTubeAPIAvailable(), "Requires YOUTUBE_API_KEY and YOUTUBE_TEST_CHANNEL_ID environment variables"))
     @MainActor
     func integration_error_handling_with_invalid_channel() async throws {
-        // This test would verify error handling with a real API call:
+        // This test verifies error handling with a real API call to an invalid channel
+        // To run: Set YOUTUBE_API_KEY and YOUTUBE_TEST_CHANNEL_ID environment variables
 
-        let service = try await YouTubeService(apiKey: testApiKey)
+        guard let apiKey = Self.getYouTubeAPIKey() else {
+            Issue.record("Environment variable YOUTUBE_API_KEY not set despite isYouTubeAPIAvailable() returning true")
+            return
+        }
 
+        let service = try await YouTubeService(apiKey: apiKey)
+
+        // Try to resolve a channel ID that's clearly invalid
         await #expect(throws: YouTubeError.self) {
-            try await service.resolveChannelIdentifier("INVALID_CHANNEL_ID_123")
+            try await service.resolveChannelIdentifier("INVALID_CHANNEL_ID_THAT_DOES_NOT_EXIST_123456789")
         }
     }
 }

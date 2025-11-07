@@ -54,7 +54,6 @@ struct ContentView: View {
                 )
             }
         }
-        .aspectRatio(16/9, contentMode: .fit)
         .onAppear {
             Task { @MainActor in
                 Logger.debug("ContentView onAppear", category: .app)

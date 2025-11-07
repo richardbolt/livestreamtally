@@ -16,9 +16,6 @@ import os
 
 @MainActor
 final class MainViewModel: ObservableObject {
-    // Static cached YouTubeService to prevent recreating it
-    private static var cachedYouTubeService: YouTubeService?
-    
     @Published var isLive = false {
         didSet {
             if oldValue != isLive {
@@ -64,19 +61,22 @@ final class MainViewModel: ObservableObject {
     private var statusCheckPublisher: AnyCancellable?
     private var timePublisher: AnyCancellable?
 
+    // Flag to prevent concurrent Task accumulation in polling timer
+    private var isCheckingStatus = false
+
     // Flag to prevent replacing injected services in tests
     private let serviceWasInjected: Bool
-    
+
     // Shared date formatter for time updates
     private let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "h:mm:ss a" // 12-hour format with AM/PM
         return formatter
     }()
-    
+
     // Add cancellables for Combine subscriptions
     private var cancellables = Set<AnyCancellable>()
-    
+
     /// Primary initializer with dependency injection for testing
     init(
         youtubeService: (any YouTubeServiceProtocol)? = nil,
@@ -115,11 +115,9 @@ final class MainViewModel: ObservableObject {
         var service: (any YouTubeServiceProtocol)? = nil
         if let keyToUse = keyToUse, !keyToUse.isEmpty {
             do {
-                // Use cached service if it exists, otherwise create a new one
-                if MainViewModel.cachedYouTubeService == nil {
-                    MainViewModel.cachedYouTubeService = try YouTubeService(apiKey: keyToUse)
-                }
-                service = MainViewModel.cachedYouTubeService
+                // Create YouTubeService directly - no caching needed
+                // Performance test shows service creation takes only ~0.03ms
+                service = try YouTubeService(apiKey: keyToUse)
             } catch {
                 Logger.error("Failed to initialize YouTube service: \(error.localizedDescription)", category: .main)
             }
@@ -131,11 +129,11 @@ final class MainViewModel: ObservableObject {
             clock: SystemClock()
         )
     }
-    
+
     deinit {
         // Combine cancellables are automatically cancelled
     }
-    
+
     private func setupPreferenceSubscriptions() {
         // Only subscribe if preferences is the real PreferencesManager (has publishers)
         // Test doubles don't need subscriptions
@@ -183,7 +181,7 @@ final class MainViewModel: ObservableObject {
             }
             .store(in: &cancellables)
     }
-    
+
     private func registerForNotifications() {
         Logger.debug("REGISTERING NOTIFICATIONS in MainViewModel", category: .main)
 
@@ -210,7 +208,7 @@ final class MainViewModel: ObservableObject {
             }
             .store(in: &cancellables)
     }
-    
+
     private func handleApiKeyChanged() {
         // Don't replace injected services (used in tests)
         guard !serviceWasInjected else {
@@ -221,16 +219,15 @@ final class MainViewModel: ObservableObject {
         // Reinitialize YouTubeService with new API key
         if let apiKey = preferences.getApiKey() {
             do {
-                // Create a new service and update the cache
-                MainViewModel.cachedYouTubeService = try YouTubeService(apiKey: apiKey)
-                youtubeService = MainViewModel.cachedYouTubeService
+                // Create a new service instance - no caching needed
+                youtubeService = try YouTubeService(apiKey: apiKey)
                 error = nil
             } catch let serviceError {
                 error = "Failed to initialize YouTube service: \(serviceError.localizedDescription)"
             }
         }
     }
-    
+
     private func handleChannelChangedAsync() async {
         // Clear YouTube service cache when channel changes
         youtubeService?.clearCache()
@@ -241,16 +238,16 @@ final class MainViewModel: ObservableObject {
             await startMonitoring()
         }
     }
-    
+
     private func handleIntervalChanged() {
         // Update timer interval when intervals are changed in preferences
         updateTimerInterval()
     }
-    
+
     func getAPIKey() -> String? {
         return preferences.getApiKey()
     }
-    
+
     private func updateTimerInterval() {
         guard statusCheckPublisher != nil else { return }
 
@@ -264,12 +261,20 @@ final class MainViewModel: ObservableObject {
         statusCheckPublisher = Timer.publish(every: interval, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
+                guard let self = self else { return }
+
+                // Skip if a status check is already in progress
+                guard !self.isCheckingStatus else {
+                    Logger.warning("Skipping status check - previous check still in progress", category: .main)
+                    return
+                }
+
                 Task { [weak self] in
                     await self?.checkLiveStatus()
                 }
             }
     }
-    
+
     func startMonitoring() async {
         Logger.debug("Monitoring timer started", category: .main)
         guard youtubeService != nil else {
@@ -298,6 +303,14 @@ final class MainViewModel: ObservableObject {
         statusCheckPublisher = Timer.publish(every: initialInterval, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
+                guard let self = self else { return }
+
+                // Skip if a status check is already in progress
+                guard !self.isCheckingStatus else {
+                    Logger.warning("Skipping status check - previous check still in progress", category: .main)
+                    return
+                }
+
                 Task { [weak self] in
                     await self?.checkLiveStatus()
                 }
@@ -306,19 +319,23 @@ final class MainViewModel: ObservableObject {
         // Start time updates
         startTimeUpdates()
     }
-    
+
     func stopMonitoring() async {
         statusCheckPublisher?.cancel()
         statusCheckPublisher = nil
         stopTimeUpdates()
+
+        // Reset the checking flag to prevent stuck state when stopping during active check
+        isCheckingStatus = false
+
         Logger.info("Monitoring stopped", category: .main)
     }
-    
+
     private func startTimeUpdates() {
         Logger.debug("TimeUpdates publisher started", category: .main)
         // Format initial time
         currentTime = timeFormatter.string(from: Date())
-        
+
         // Use a publisher that doesn't trigger as many UI updates
         timePublisher = Timer.publish(every: 1.0, on: .main, in: .default)
             .autoconnect()
@@ -333,45 +350,49 @@ final class MainViewModel: ObservableObject {
                 }
             }
     }
-    
+
     private func stopTimeUpdates() {
         Logger.debug("TimeUpdates publisher stopped", category: .main)
         timePublisher?.cancel()
         timePublisher = nil
     }
-    
+
     private func checkLiveStatus() async {
         guard let youtubeService = youtubeService else { return }
-        
+
+        // Set flag to prevent concurrent checks
+        isCheckingStatus = true
+        defer { isCheckingStatus = false }
+
         // Create a local copy of the service to avoid isolation issues
         let service = youtubeService
-        
+
         do {
             // Get the latest values from preferences
             let currentChannelId = channelId
             let currentCachedChannelId = cachedChannelId
             let currentUploadPlaylistId = uploadPlaylistId
-            
+
             // If we don't have a cached channel ID or playlist ID, resolve it
             if currentCachedChannelId.isEmpty || currentUploadPlaylistId.isEmpty {
                 // Clear any cached video data when resolving a new channel
                 service.clearCache()
-                
+
                 // Resolve the channel identifier
                 let (resolvedChannelId, resolvedPlaylistId) = try await service.resolveChannelIdentifier(currentChannelId)
-                
+
                 // Update resolved info in preferences
                 preferences.setResolvedChannelInfo(
                     channelId: resolvedChannelId,
                     playlistId: resolvedPlaylistId
                 )
-                
+
                 // Use the newly resolved values for this check
                 let status = try await service.checkLiveStatus(
                     channelId: resolvedChannelId,
                     uploadPlaylistId: resolvedPlaylistId
                 )
-                
+
                 // Update UI state
                 isLive = status.isLive
                 viewerCount = status.viewerCount
@@ -383,16 +404,16 @@ final class MainViewModel: ObservableObject {
                     channelId: currentCachedChannelId,
                     uploadPlaylistId: currentUploadPlaylistId
                 )
-                
+
                 // Update UI state
                 isLive = status.isLive
                 viewerCount = status.viewerCount
                 title = status.title
                 error = nil
             }
-            
+
             Logger.debug("Status updated - isLive: \(isLive), viewers: \(viewerCount), title: \(title)", category: .main)
-            
+
         } catch let serviceError {
             if case YouTubeError.quotaExceeded = serviceError {
                 self.error = "YouTube API quota exceeded. Please try again later."
@@ -402,7 +423,7 @@ final class MainViewModel: ObservableObject {
             Logger.error("Failed to check live status: \(serviceError.localizedDescription)", category: .main)
         }
     }
-    
+
     func updateApiKey(_ newApiKey: String) {
         if preferences.updateApiKey(newApiKey) {
             // The notification handler will reinitialize the service
@@ -417,4 +438,4 @@ final class MainViewModel: ObservableObject {
         // This will trigger notifications that we observe
         preferences.updateChannelId(newChannelId)
     }
-} 
+}

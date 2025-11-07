@@ -15,25 +15,30 @@ import Security
 @MainActor
 class KeychainManager {
     static let shared = KeychainManager()
-    
+
     private let service = "com.richardbolt.livestreamtally"
     private let account = "youtube_api_key"
-    
+
     func saveAPIKey(_ apiKey: String) -> Bool {
+        guard let data = apiKey.data(using: .utf8) else {
+            Logger.error("Failed to encode API key as UTF-8", category: .app)
+            return false
+        }
+
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
-            kSecValueData as String: apiKey.data(using: .utf8)!,
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked
+            kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         ]
-        
+
         SecItemDelete(query as CFDictionary)
         let status = SecItemAdd(query as CFDictionary, nil)
-        
+
         return status == errSecSuccess
     }
-    
+
     func retrieveAPIKey() -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -42,26 +47,26 @@ class KeychainManager {
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
-        
+
         var dataTypeRef: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &dataTypeRef)
-        
+
         if status == errSecSuccess,
            let retrievedData = dataTypeRef as? Data,
            let value = String(data: retrievedData, encoding: .utf8) {
             return value
         }
-        
+
         return nil
     }
-    
+
     func deleteAPIKey() -> Bool {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account
         ]
-        
+
         let status = SecItemDelete(query as CFDictionary)
         return status == errSecSuccess || status == errSecItemNotFound
     }
@@ -72,7 +77,7 @@ enum KeychainError: LocalizedError {
     case retrieveFailed(status: OSStatus)
     case deleteFailed(status: OSStatus)
     case unexpectedData
-    
+
     var errorDescription: String? {
         switch self {
         case .saveFailed(let status):
@@ -85,4 +90,4 @@ enum KeychainError: LocalizedError {
             return "Retrieved data was in unexpected format"
         }
     }
-} 
+}
