@@ -96,6 +96,60 @@ The app uses a centralized state management approach:
 - **AppLifecycleHandler**: Ensures clean NDI shutdown on app termination
 - Window closes = app terminates (no persistent menu bar mode)
 
+#### CRITICAL: Login Item Window Creation
+**DO NOT MODIFY OR REMOVE THIS FUNCTIONALITY** - The app must properly display its window when launched as a macOS Login Item.
+
+When the app is launched as a Login Item (at user login), SwiftUI's `WindowGroup` does NOT automatically create a window. This is a macOS behavior difference from normal app launches. The following critical implementation ensures the window appears correctly:
+
+1. **Synchronous ViewModel Assignment** (`LiveStreamTallyApp.swift:36-38`):
+   - View models MUST be assigned to `AppDelegate` synchronously during app initialization
+   - The previous async approach created a race condition where `applicationDidFinishLaunching` could run before view models were available
+   - This ensures view models are always available when AppDelegate needs them
+
+2. **Manual Window Creation for Login Items** (`AppDelegate.swift:54-87`):
+   - In `applicationDidFinishLaunching`, check if a window exists via `NSApp.windows.first`
+   - If NO window exists (Login Item launch), manually create it using `NSHostingView` with the SwiftUI `ContentView`
+   - Configure window properties: title, size (1280x720), 16:9 aspect ratio, and delegate
+   - Use `makeKeyAndOrderFront` to display the window
+
+3. **Multi-Step Window Activation** (`AppDelegate.swift:146-154`):
+   - Set activation policy to `.regular` (not `.accessory` or `.prohibited`)
+   - Call `makeKeyAndOrderFront(nil)` to make window visible
+   - Call `center()` to position window on screen
+   - Call `orderFrontRegardless()` - the most aggressive ordering method
+   - Call `NSApplication.shared.activate(ignoringOtherApps: true)` to activate app
+   - Check and deminiaturize if needed
+   - Call `makeKey()` again to ensure window has focus
+   - Each step is necessary for reliable window appearance across different macOS versions and states
+
+4. **Window Setup Coordination** (`AppDelegate.swift:94-109`):
+   - Track `windowSetupCompleted` flag to prevent duplicate setup
+   - `windowDidAppear()` is called from `ContentView.onAppear` for normal launches
+   - Skip `windowDidAppear()` if window was manually created (Login Item path)
+   - Start NDI only after window setup is complete
+
+5. **Startup Network Retry Logic** (`MainViewModel.swift:384-441`):
+   - When monitoring starts at app launch, network may not be available yet
+   - Automatically retry YouTube API calls with exponential backoff (1s, 2s, 4s, 8s, 16s)
+   - Use `NWPathMonitor` to detect network availability
+   - Provide user feedback during retries
+   - Maximum 5 retry attempts before giving up
+   - Cancel retry task when monitoring stops
+
+**Testing Login Item Behavior**:
+```bash
+# Add app as Login Item in System Settings > General > Login Items
+# Log out and log back in to test
+# Window should appear immediately without user intervention
+# Use OS_ACTIVITY_MODE=debug to see detailed logs during login
+```
+
+**Symptoms of Broken Login Item Support**:
+- App launches at login but no window appears
+- User must click dock icon or use Cmd+Tab to make window appear
+- Window exists but is hidden/behind other windows
+- Race conditions where view models are nil in AppDelegate
+
 ## Important Implementation Details
 
 ### When API Key or Channel Changes
