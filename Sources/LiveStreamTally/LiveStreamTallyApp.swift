@@ -29,21 +29,27 @@ struct LiveStreamTallyApp: App {
         // Initialize NDIViewModel (without mainViewModel reference initially)
         let ndiVM = NDIViewModel()
         _ndiViewModel = StateObject(wrappedValue: ndiVM)
+
+        // CRITICAL: Pass view models to AppDelegate SYNCHRONOUSLY during init
+        // This ensures they're available BEFORE applicationDidFinishLaunching is called
+        // The previous async approach created a race condition during Login Item launches
+        // where applicationDidFinishLaunching could run before view models were assigned
+        appDelegate.mainViewModel = mainVM
+        appDelegate.ndiViewModel = ndiVM
+        Logger.debug("View models assigned to AppDelegate synchronously during app init", category: .app)
     }
     
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: "main") {
             ContentView()
                 .frame(minWidth: 640, minHeight: 360)
                 .frame(maxWidth: 1920, maxHeight: 1080)
                 .environmentObject(mainViewModel)
                 .environmentObject(ndiViewModel)
                 .onAppear {
-                    // Pass view models to AppDelegate and start NDI
-                    // This happens after WindowGroup creates the window
-                    appDelegate.mainViewModel = mainViewModel
-                    appDelegate.ndiViewModel = ndiViewModel
-                    appDelegate.startNDIIfReady()
+                    Logger.debug("ContentView appeared, notifying AppDelegate", category: .app)
+                    // Window is now fully ready - notify AppDelegate to complete setup
+                    appDelegate.windowDidAppear()
                 }
         }
         .windowResizability(.contentSize)
