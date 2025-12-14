@@ -13,6 +13,7 @@ import Foundation
 import SwiftUI
 import Combine
 import os
+import Network
 
 @MainActor
 final class MainViewModel: ObservableObject {
@@ -76,6 +77,11 @@ final class MainViewModel: ObservableObject {
 
     // Add cancellables for Combine subscriptions
     private var cancellables = Set<AnyCancellable>()
+
+    // Track startup network retry state
+    private var startupRetryCount = 0
+    private let maxStartupRetries = 5
+    private var startupRetryTask: Task<Void, Never>?
 
     /// Primary initializer with dependency injection for testing
     init(
@@ -275,8 +281,60 @@ final class MainViewModel: ObservableObject {
             }
     }
 
+    /// Thread-safe flag for network availability check
+    private final class NetworkCheckState: @unchecked Sendable {
+        private let lock = NSLock()
+        private var _hasResumed = false
+
+        var hasResumed: Bool {
+            get {
+                lock.lock()
+                defer { lock.unlock() }
+                return _hasResumed
+            }
+            set {
+                lock.lock()
+                defer { lock.unlock() }
+                _hasResumed = newValue
+            }
+        }
+    }
+
+    /// Check if network is available
+    private func isNetworkAvailable() async -> Bool {
+        return await withCheckedContinuation { continuation in
+            let monitor = NWPathMonitor()
+            let queue = DispatchQueue(label: "com.richardbolt.livestreamtally.networkcheck")
+            let state = NetworkCheckState()
+
+            monitor.pathUpdateHandler = { path in
+                if !state.hasResumed {
+                    state.hasResumed = true
+                    monitor.cancel()
+                    continuation.resume(returning: path.status == .satisfied)
+                }
+            }
+
+            monitor.start(queue: queue)
+
+            // Set a timeout to prevent indefinite waiting
+            queue.asyncAfter(deadline: .now() + 1.0) {
+                if !state.hasResumed {
+                    state.hasResumed = true
+                    monitor.cancel()
+                    continuation.resume(returning: false)
+                }
+            }
+        }
+    }
+
     func startMonitoring() async {
         Logger.debug("Monitoring timer started", category: .main)
+
+        // Cancel any existing retry task
+        startupRetryTask?.cancel()
+        startupRetryTask = nil
+
         guard youtubeService != nil else {
             error = "YouTube service not initialized. Please check your API key."
             return
@@ -292,8 +350,8 @@ final class MainViewModel: ObservableObject {
 
         isLoading = true
 
-        // Check immediately
-        await checkLiveStatus()
+        // Check immediately with network retry logic
+        await checkLiveStatusWithStartupRetry()
         isLoading = false
 
         // Get initial interval from preferences
@@ -320,10 +378,76 @@ final class MainViewModel: ObservableObject {
         startTimeUpdates()
     }
 
+    /// Check live status with automatic retry on network errors during startup
+    private func checkLiveStatusWithStartupRetry() async {
+        // Try the initial check
+        await checkLiveStatus()
+
+        // Check if we got a network error
+        if let currentError = error, currentError.contains("Network error") {
+            Logger.warning("Network error during startup, will retry with exponential backoff", category: .main)
+
+            // Start exponential backoff retry
+            startupRetryTask = Task { @MainActor in
+                while startupRetryCount < maxStartupRetries {
+                    // Calculate delay with exponential backoff: 1s, 2s, 4s, 8s, 16s
+                    let delay = pow(2.0, Double(startupRetryCount))
+                    Logger.info("Retrying in \(Int(delay)) seconds (attempt \(startupRetryCount + 1)/\(maxStartupRetries))", category: .main)
+
+                    // Update error message to show we're retrying
+                    error = "Network unavailable. Retrying in \(Int(delay))s... (attempt \(startupRetryCount + 1)/\(maxStartupRetries))"
+
+                    try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+
+                    // Check if task was cancelled
+                    if Task.isCancelled {
+                        Logger.debug("Startup retry task cancelled", category: .main)
+                        return
+                    }
+
+                    // Check if network is available
+                    if !(await isNetworkAvailable()) {
+                        Logger.info("Network still unavailable, continuing to wait...", category: .main)
+                        startupRetryCount += 1
+                        continue
+                    }
+
+                    // Try checking status again
+                    Logger.info("Network available, retrying status check", category: .main)
+                    await checkLiveStatus()
+
+                    // If we got here without error, we succeeded
+                    if error == nil || !error!.contains("Network error") {
+                        Logger.info("Status check succeeded on retry", category: .main)
+                        startupRetryCount = 0
+                        error = nil // Clear any retry messages
+                        return
+                    }
+
+                    startupRetryCount += 1
+                }
+
+                // Max retries reached
+                if startupRetryCount >= maxStartupRetries {
+                    Logger.error("Max startup retries reached, giving up", category: .main)
+                    error = "Unable to connect to YouTube after \(maxStartupRetries) attempts. Please check your network connection."
+                }
+            }
+        } else {
+            // No network error, reset retry count
+            startupRetryCount = 0
+        }
+    }
+
     func stopMonitoring() async {
         statusCheckPublisher?.cancel()
         statusCheckPublisher = nil
         stopTimeUpdates()
+
+        // Cancel any startup retry task
+        startupRetryTask?.cancel()
+        startupRetryTask = nil
+        startupRetryCount = 0
 
         // Reset the checking flag to prevent stuck state when stopping during active check
         isCheckingStatus = false
